@@ -17,20 +17,30 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -40,20 +50,44 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import io.github.nanima1.twilight.domain.appearance.ThemePreset
 import io.github.nanima1.twilight.domain.timer.TimerPhase
+import io.github.nanima1.twilight.presentation.appearance.AppearanceSheet
+import io.github.nanima1.twilight.presentation.appearance.AppearanceUiState
 import java.util.Locale
 
 @Composable
 fun TimerScreen(
     state: TimerUiState,
+    appearance: AppearanceUiState,
     onTimerPressed: () -> Unit,
+    onThemeSelected: (ThemePreset) -> Unit,
+    onWallpaperRequested: () -> Unit,
+    onWallpaperRemoved: () -> Unit,
+    onWallpaperScrimChanged: (Float) -> Unit,
+    onWallpaperImportErrorShown: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showAppearance by rememberSaveable { mutableStateOf(false) }
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        appearance.settings.wallpaperUri?.let { wallpaperUri ->
+            AsyncImage(
+                model = wallpaperUri,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = appearance.settings.wallpaperScrim))
+            )
+        }
         TwilightBackdrop(Modifier.fillMaxSize())
         Column(
             modifier = Modifier
@@ -63,9 +97,12 @@ fun TimerScreen(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Header()
+            Header(onAppearancePressed = { showAppearance = true })
             Spacer(Modifier.height(20.dp))
-            ScramblePanel(scramble = state.scramble)
+            ScramblePanel(
+                scramble = state.scramble,
+                hasWallpaper = appearance.settings.wallpaperUri != null
+            )
             Spacer(Modifier.weight(1f))
             TimerReadout(
                 elapsedMillis = state.session.elapsedMillis,
@@ -75,17 +112,22 @@ fun TimerScreen(
             Spacer(Modifier.height(20.dp))
             SessionStats(state)
             Spacer(Modifier.height(18.dp))
+            val isRunning = state.session.phase == TimerPhase.RUNNING
             Button(
                 onClick = onTimerPressed,
                 modifier = Modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(vertical = 17.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (state.session.phase == TimerPhase.RUNNING) {
+                    containerColor = if (isRunning) {
                         MaterialTheme.colorScheme.tertiary
                     } else {
                         MaterialTheme.colorScheme.primary
                     },
-                    contentColor = MaterialTheme.colorScheme.onPrimary
+                    contentColor = if (isRunning) {
+                        MaterialTheme.colorScheme.onTertiary
+                    } else {
+                        MaterialTheme.colorScheme.onPrimary
+                    }
                 ),
                 shape = RoundedCornerShape(6.dp)
             ) {
@@ -95,11 +137,22 @@ fun TimerScreen(
                 )
             }
         }
+        if (showAppearance) {
+            AppearanceSheet(
+                state = appearance,
+                onDismiss = { showAppearance = false },
+                onThemeSelected = onThemeSelected,
+                onWallpaperRequested = onWallpaperRequested,
+                onWallpaperRemoved = onWallpaperRemoved,
+                onWallpaperScrimChanged = onWallpaperScrimChanged,
+                onWallpaperImportErrorShown = onWallpaperImportErrorShown
+            )
+        }
     }
 }
 
 @Composable
-private fun Header() {
+private fun Header(onAppearancePressed: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -111,20 +164,33 @@ private fun Header() {
             color = MaterialTheme.colorScheme.onBackground,
             fontWeight = FontWeight.Bold
         )
-        Text(
-            text = "ALPHA",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "ALPHA",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.width(6.dp))
+            IconButton(onClick = onAppearancePressed) {
+                Icon(
+                    imageVector = Icons.Rounded.Palette,
+                    contentDescription = "Open appearance",
+                    tint = MaterialTheme.colorScheme.onBackground
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun ScramblePanel(scramble: String) {
+private fun ScramblePanel(
+    scramble: String,
+    hasWallpaper: Boolean
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = if (hasWallpaper) 0.92f else 0.82f),
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = RoundedCornerShape(6.dp),
         tonalElevation = 0.dp,
@@ -173,6 +239,12 @@ private fun TimerReadout(
             lineHeight = 74.sp,
             color = timerColor,
             textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.displayLarge.copy(
+                shadow = Shadow(
+                    color = timerColor.copy(alpha = 0.35f),
+                    blurRadius = 18f
+                )
+            ),
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(8.dp))

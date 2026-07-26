@@ -1,17 +1,21 @@
 package io.github.nanima1.twilight
 
-import android.os.Bundle
 import android.graphics.Color
 import android.os.Build
+import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.view.WindowCompat
 import io.github.nanima1.twilight.presentation.TimerScreen
 import io.github.nanima1.twilight.presentation.TimerViewModel
+import io.github.nanima1.twilight.presentation.appearance.AppearanceViewModel
 import io.github.nanima1.twilight.presentation.theme.TwilightTimerTheme
 
 class MainActivity : ComponentActivity() {
@@ -29,13 +33,27 @@ class MainActivity : ComponentActivity() {
             isAppearanceLightNavigationBars = false
         }
         setContent {
-            val viewModel: TimerViewModel = viewModel()
-            val state by viewModel.state.collectAsStateWithLifecycle()
+            val timerViewModel: TimerViewModel = viewModel()
+            val timerState by timerViewModel.state.collectAsStateWithLifecycle()
+            val appearanceFactory = remember { AppearanceViewModel.factory(applicationContext) }
+            val appearanceViewModel: AppearanceViewModel = viewModel(factory = appearanceFactory)
+            val appearanceState by appearanceViewModel.state.collectAsStateWithLifecycle()
+            val wallpaperPicker = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.OpenDocument()
+            ) { uri ->
+                uri?.toString()?.let(appearanceViewModel::importWallpaper)
+            }
 
-            TwilightTimerTheme {
+            TwilightTimerTheme(themePreset = appearanceState.settings.themePreset) {
                 TimerScreen(
-                    state = state,
-                    onTimerPressed = viewModel::onTimerPressed
+                    state = timerState,
+                    appearance = appearanceState,
+                    onTimerPressed = timerViewModel::onTimerPressed,
+                    onThemeSelected = appearanceViewModel::setThemePreset,
+                    onWallpaperRequested = { wallpaperPicker.launch(arrayOf("image/*")) },
+                    onWallpaperRemoved = appearanceViewModel::removeWallpaper,
+                    onWallpaperScrimChanged = appearanceViewModel::setWallpaperScrim,
+                    onWallpaperImportErrorShown = appearanceViewModel::clearWallpaperImportError
                 )
             }
         }
