@@ -5,14 +5,16 @@ plugins {
 }
 
 val configuredBuildRoot = providers.environmentVariable("TWILIGHT_GRADLE_BUILD_ROOT").orNull
-val defaultBuildRoot =
-    "${System.getenv("LOCALAPPDATA") ?: "C:/Temp"}/Temp/twilight-timer-gradle-build"
-val buildRoot = file(
-    configuredBuildRoot ?: defaultBuildRoot
-)
+val defaultWindowsBuildRoot =
+    providers.environmentVariable("LOCALAPPDATA").orNull
+        ?.let { "$it/Temp/twilight-timer-gradle-build" }
 
-allprojects {
-    layout.buildDirectory.set(
-        buildRoot.resolve(if (path == ":") "root" else path.removePrefix(":"))
-    )
+(configuredBuildRoot ?: defaultWindowsBuildRoot)?.let { buildRootPath ->
+    val buildRoot = file(buildRootPath)
+
+    allprojects {
+        layout.buildDirectory.set(
+            buildRoot.resolve(if (path == ":") "root" else path.removePrefix(":"))
+        )
+    }
 }
