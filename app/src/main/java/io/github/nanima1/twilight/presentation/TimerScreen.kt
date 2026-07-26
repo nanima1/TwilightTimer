@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import io.github.nanima1.twilight.domain.appearance.ThemePreset
+import io.github.nanima1.twilight.domain.appearance.WallpaperPosition
 import io.github.nanima1.twilight.domain.timer.TimerPhase
 import io.github.nanima1.twilight.presentation.appearance.AppearanceSheet
 import io.github.nanima1.twilight.presentation.appearance.AppearanceUiState
@@ -68,6 +69,7 @@ fun TimerScreen(
     onWallpaperRequested: () -> Unit,
     onWallpaperRemoved: () -> Unit,
     onWallpaperScrimChanged: (Float) -> Unit,
+    onWallpaperPositionChanged: (WallpaperPosition) -> Unit,
     onWallpaperImportErrorShown: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -83,6 +85,7 @@ fun TimerScreen(
                 model = wallpaperUri,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
+                alignment = appearance.settings.wallpaperPosition.toAlignment(),
                 modifier = Modifier.fillMaxSize()
             )
             Box(
@@ -158,10 +161,17 @@ fun TimerScreen(
                 onWallpaperRequested = onWallpaperRequested,
                 onWallpaperRemoved = onWallpaperRemoved,
                 onWallpaperScrimChanged = onWallpaperScrimChanged,
+                onWallpaperPositionChanged = onWallpaperPositionChanged,
                 onWallpaperImportErrorShown = onWallpaperImportErrorShown
             )
         }
     }
+}
+
+private fun WallpaperPosition.toAlignment(): Alignment = when (this) {
+    WallpaperPosition.TOP -> Alignment.TopCenter
+    WallpaperPosition.CENTER -> Alignment.Center
+    WallpaperPosition.BOTTOM -> Alignment.BottomCenter
 }
 
 @Composable

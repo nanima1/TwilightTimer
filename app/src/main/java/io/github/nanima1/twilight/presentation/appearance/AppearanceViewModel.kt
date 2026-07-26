@@ -12,6 +12,7 @@ import io.github.nanima1.twilight.data.appearance.FileWallpaperStore
 import io.github.nanima1.twilight.data.appearance.WallpaperStore
 import io.github.nanima1.twilight.domain.appearance.AppearanceSettings
 import io.github.nanima1.twilight.domain.appearance.ThemePreset
+import io.github.nanima1.twilight.domain.appearance.WallpaperPosition
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -86,6 +87,12 @@ class AppearanceViewModel(
     fun setWallpaperScrim(scrim: Float) {
         viewModelScope.launch {
             repository.setWallpaperScrim(scrim)
+        }
+    }
+
+    fun setWallpaperPosition(position: WallpaperPosition) {
+        viewModelScope.launch {
+            repository.setWallpaperPosition(position)
         }
     }
 

@@ -4,6 +4,7 @@ import io.github.nanima1.twilight.data.appearance.AppearanceRepository
 import io.github.nanima1.twilight.data.appearance.WallpaperStore
 import io.github.nanima1.twilight.domain.appearance.AppearanceSettings
 import io.github.nanima1.twilight.domain.appearance.ThemePreset
+import io.github.nanima1.twilight.domain.appearance.WallpaperPosition
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -72,6 +73,22 @@ class AppearanceViewModelTest {
         assertFalse(viewModel.state.value.isWallpaperImporting)
     }
 
+    @Test
+    fun `wallpaper position is persisted`() = runTest {
+        val repository = FakeAppearanceRepository(
+            AppearanceSettings(wallpaperUri = "file:///wallpaper")
+        )
+        val viewModel = AppearanceViewModel(repository, FakeWallpaperStore())
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.state.collect()
+        }
+
+        viewModel.setWallpaperPosition(WallpaperPosition.TOP)
+        advanceUntilIdle()
+
+        assertEquals(WallpaperPosition.TOP, repository.current.wallpaperPosition)
+    }
+
     private class FakeAppearanceRepository(initial: AppearanceSettings) : AppearanceRepository {
         private val mutableSettings = MutableStateFlow(initial)
         override val settings: Flow<AppearanceSettings> = mutableSettings
@@ -87,6 +104,10 @@ class AppearanceViewModelTest {
 
         override suspend fun setWallpaperScrim(scrim: Float) {
             mutableSettings.value = current.copy(wallpaperScrim = scrim)
+        }
+
+        override suspend fun setWallpaperPosition(position: WallpaperPosition) {
+            mutableSettings.value = current.copy(wallpaperPosition = position)
         }
     }
 

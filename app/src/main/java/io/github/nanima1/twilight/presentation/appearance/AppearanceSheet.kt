@@ -3,6 +3,8 @@ package io.github.nanima1.twilight.presentation.appearance
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +29,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -46,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.nanima1.twilight.domain.appearance.AppearanceSettings
 import io.github.nanima1.twilight.domain.appearance.ThemePreset
+import io.github.nanima1.twilight.domain.appearance.WallpaperPosition
 import io.github.nanima1.twilight.presentation.theme.preview
 import kotlin.math.roundToInt
 
@@ -58,6 +64,7 @@ fun AppearanceSheet(
     onWallpaperRequested: () -> Unit,
     onWallpaperRemoved: () -> Unit,
     onWallpaperScrimChanged: (Float) -> Unit,
+    onWallpaperPositionChanged: (WallpaperPosition) -> Unit,
     onWallpaperImportErrorShown: () -> Unit
 ) {
     val settings = state.settings
@@ -76,6 +83,7 @@ fun AppearanceSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(start = 20.dp, end = 20.dp, bottom = 24.dp)
         ) {
             Row(
@@ -174,6 +182,29 @@ fun AppearanceSheet(
             }
 
             Spacer(Modifier.height(20.dp))
+            Text(
+                text = "IMAGE POSITION",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(10.dp))
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                WallpaperPosition.entries.forEachIndexed { index, position ->
+                    SegmentedButton(
+                        selected = settings.wallpaperPosition == position,
+                        onClick = { onWallpaperPositionChanged(position) },
+                        shape = SegmentedButtonDefaults.itemShape(
+                            index = index,
+                            count = WallpaperPosition.entries.size
+                        ),
+                        enabled = settings.wallpaperUri != null,
+                        label = { Text(position.displayName()) }
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -204,6 +235,12 @@ fun AppearanceSheet(
             )
         }
     }
+}
+
+private fun WallpaperPosition.displayName(): String = when (this) {
+    WallpaperPosition.TOP -> "Top"
+    WallpaperPosition.CENTER -> "Center"
+    WallpaperPosition.BOTTOM -> "Bottom"
 }
 
 @Composable

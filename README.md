@@ -9,7 +9,7 @@ Twilight Timer is an independently developed Android speedcubing timer. The firs
 - Pure timer state reducer with unit tests
 - Local 3x3 scramble generator
 - Three persisted theme packs with live switching
-- Private custom-wallpaper import with readability controls
+- Private custom-wallpaper import with readability and crop-position controls
 - Room-backed solve history with live session statistics
 - Independent package: `io.github.nanima1.twilight`
 

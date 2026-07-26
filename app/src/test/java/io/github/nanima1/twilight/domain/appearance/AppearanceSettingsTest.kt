@@ -11,6 +11,11 @@ class AppearanceSettingsTest {
     }
 
     @Test
+    fun `unknown wallpaper position falls back to center`() {
+        assertEquals(WallpaperPosition.CENTER, WallpaperPosition.fromId("missing"))
+    }
+
+    @Test
     fun `wallpaper scrim is clamped to readable bounds`() {
         assertEquals(
             AppearanceSettings.MIN_WALLPAPER_SCRIM,

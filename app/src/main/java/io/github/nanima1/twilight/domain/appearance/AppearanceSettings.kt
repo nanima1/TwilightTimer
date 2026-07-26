@@ -10,10 +10,21 @@ enum class ThemePreset(val id: String) {
     }
 }
 
+enum class WallpaperPosition(val id: String) {
+    TOP("top"),
+    CENTER("center"),
+    BOTTOM("bottom");
+
+    companion object {
+        fun fromId(id: String?): WallpaperPosition = entries.firstOrNull { it.id == id } ?: CENTER
+    }
+}
+
 data class AppearanceSettings(
     val themePreset: ThemePreset = ThemePreset.TWILIGHT,
     val wallpaperUri: String? = null,
-    val wallpaperScrim: Float = DEFAULT_WALLPAPER_SCRIM
+    val wallpaperScrim: Float = DEFAULT_WALLPAPER_SCRIM,
+    val wallpaperPosition: WallpaperPosition = WallpaperPosition.CENTER
 ) {
     companion object {
         const val MIN_WALLPAPER_SCRIM = 0.35f

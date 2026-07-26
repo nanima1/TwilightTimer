@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import io.github.nanima1.twilight.domain.appearance.AppearanceSettings
 import io.github.nanima1.twilight.domain.appearance.ThemePreset
+import io.github.nanima1.twilight.domain.appearance.WallpaperPosition
 import java.io.IOException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -24,6 +25,8 @@ interface AppearanceRepository {
     suspend fun setWallpaperUri(uri: String?)
 
     suspend fun setWallpaperScrim(scrim: Float)
+
+    suspend fun setWallpaperPosition(position: WallpaperPosition)
 }
 
 private val Context.appearanceDataStore: DataStore<Preferences> by preferencesDataStore(
@@ -67,17 +70,25 @@ class DataStoreAppearanceRepository(context: Context) : AppearanceRepository {
         }
     }
 
+    override suspend fun setWallpaperPosition(position: WallpaperPosition) {
+        dataStore.edit { preferences ->
+            preferences[Keys.wallpaperPosition] = position.id
+        }
+    }
+
     private fun Preferences.toAppearanceSettings(): AppearanceSettings = AppearanceSettings(
         themePreset = ThemePreset.fromId(this[Keys.themePreset]),
         wallpaperUri = AppearanceSettings.normalizeWallpaperUri(this[Keys.wallpaperUri]),
         wallpaperScrim = AppearanceSettings.normalizeWallpaperScrim(
             this[Keys.wallpaperScrim] ?: AppearanceSettings.DEFAULT_WALLPAPER_SCRIM
-        )
+        ),
+        wallpaperPosition = WallpaperPosition.fromId(this[Keys.wallpaperPosition])
     )
 
     private object Keys {
         val themePreset = stringPreferencesKey("theme_preset")
         val wallpaperUri = stringPreferencesKey("wallpaper_uri")
         val wallpaperScrim = floatPreferencesKey("wallpaper_scrim")
+        val wallpaperPosition = stringPreferencesKey("wallpaper_position")
     }
 }

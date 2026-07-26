@@ -55,6 +55,7 @@ class MainActivity : ComponentActivity() {
                     onWallpaperRequested = { wallpaperPicker.launch(arrayOf("image/*")) },
                     onWallpaperRemoved = appearanceViewModel::removeWallpaper,
                     onWallpaperScrimChanged = appearanceViewModel::setWallpaperScrim,
+                    onWallpaperPositionChanged = appearanceViewModel::setWallpaperPosition,
                     onWallpaperImportErrorShown = appearanceViewModel::clearWallpaperImportError
                 )
             }
