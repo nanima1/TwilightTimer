@@ -33,7 +33,8 @@ class MainActivity : ComponentActivity() {
             isAppearanceLightNavigationBars = false
         }
         setContent {
-            val timerViewModel: TimerViewModel = viewModel()
+            val timerFactory = remember { TimerViewModel.factory(applicationContext) }
+            val timerViewModel: TimerViewModel = viewModel(factory = timerFactory)
             val timerState by timerViewModel.state.collectAsStateWithLifecycle()
             val appearanceFactory = remember { AppearanceViewModel.factory(applicationContext) }
             val appearanceViewModel: AppearanceViewModel = viewModel(factory = appearanceFactory)
@@ -49,6 +50,7 @@ class MainActivity : ComponentActivity() {
                     state = timerState,
                     appearance = appearanceState,
                     onTimerPressed = timerViewModel::onTimerPressed,
+                    onSolveDeleted = timerViewModel::deleteSolve,
                     onThemeSelected = appearanceViewModel::setThemePreset,
                     onWallpaperRequested = { wallpaperPicker.launch(arrayOf("image/*")) },
                     onWallpaperRemoved = appearanceViewModel::removeWallpaper,

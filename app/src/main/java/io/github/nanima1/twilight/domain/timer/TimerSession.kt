@@ -8,10 +8,7 @@ enum class TimerPhase {
 data class TimerSession(
     val phase: TimerPhase = TimerPhase.READY,
     val startedAtMillis: Long? = null,
-    val elapsedMillis: Long = 0L,
-    val lastSolveMillis: Long? = null,
-    val bestSolveMillis: Long? = null,
-    val solveCount: Int = 0
+    val elapsedMillis: Long = 0L
 )
 
 object TimerSessionReducer {
@@ -28,13 +25,9 @@ object TimerSessionReducer {
     fun stop(session: TimerSession, nowMillis: Long): TimerSession {
         val completed = tick(session, nowMillis)
         check(completed.phase == TimerPhase.RUNNING) { "A timer can only stop while running." }
-        val best = listOfNotNull(completed.bestSolveMillis, completed.elapsedMillis).minOrNull()
         return completed.copy(
             phase = TimerPhase.READY,
-            startedAtMillis = null,
-            lastSolveMillis = completed.elapsedMillis,
-            bestSolveMillis = best,
-            solveCount = completed.solveCount + 1
+            startedAtMillis = null
         )
     }
 }

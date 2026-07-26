@@ -6,25 +6,23 @@ import org.junit.Test
 
 class TimerSessionReducerTest {
     @Test
-    fun `stopping a session records last best and solve count`() {
+    fun `stopping a session preserves the completed duration`() {
         val running = TimerSessionReducer.start(TimerSession(), nowMillis = 100L)
 
         val stopped = TimerSessionReducer.stop(running, nowMillis = 12_445L)
 
         assertEquals(TimerPhase.READY, stopped.phase)
         assertNull(stopped.startedAtMillis)
-        assertEquals(12_345L, stopped.lastSolveMillis)
-        assertEquals(12_345L, stopped.bestSolveMillis)
-        assertEquals(1, stopped.solveCount)
+        assertEquals(12_345L, stopped.elapsedMillis)
     }
 
     @Test
-    fun `a slower solve preserves the best result`() {
-        val previous = TimerSession(bestSolveMillis = 9_876L)
-        val running = TimerSessionReducer.start(previous, nowMillis = 20L)
+    fun `starting another solve clears the previous duration`() {
+        val running = TimerSessionReducer.start(
+            TimerSession(elapsedMillis = 9_876L),
+            nowMillis = 20L
+        )
 
-        val stopped = TimerSessionReducer.stop(running, nowMillis = 12_000L)
-
-        assertEquals(9_876L, stopped.bestSolveMillis)
+        assertEquals(0L, running.elapsedMillis)
     }
 }

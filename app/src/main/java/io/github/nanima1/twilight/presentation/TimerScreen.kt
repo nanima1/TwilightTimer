@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -62,6 +63,7 @@ fun TimerScreen(
     state: TimerUiState,
     appearance: AppearanceUiState,
     onTimerPressed: () -> Unit,
+    onSolveDeleted: (Long) -> Unit,
     onThemeSelected: (ThemePreset) -> Unit,
     onWallpaperRequested: () -> Unit,
     onWallpaperRemoved: () -> Unit,
@@ -70,6 +72,7 @@ fun TimerScreen(
     modifier: Modifier = Modifier
 ) {
     var showAppearance by rememberSaveable { mutableStateOf(false) }
+    var showHistory by rememberSaveable { mutableStateOf(false) }
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -97,7 +100,10 @@ fun TimerScreen(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Header(onAppearancePressed = { showAppearance = true })
+            Header(
+                onHistoryPressed = { showHistory = true },
+                onAppearancePressed = { showAppearance = true }
+            )
             Spacer(Modifier.height(20.dp))
             ScramblePanel(
                 scramble = state.scramble,
@@ -137,6 +143,13 @@ fun TimerScreen(
                 )
             }
         }
+        if (showHistory) {
+            HistorySheet(
+                history = state.history,
+                onSolveDeleted = onSolveDeleted,
+                onDismiss = { showHistory = false }
+            )
+        }
         if (showAppearance) {
             AppearanceSheet(
                 state = appearance,
@@ -152,7 +165,10 @@ fun TimerScreen(
 }
 
 @Composable
-private fun Header(onAppearancePressed: () -> Unit) {
+private fun Header(
+    onHistoryPressed: () -> Unit,
+    onAppearancePressed: () -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -172,6 +188,13 @@ private fun Header(onAppearancePressed: () -> Unit) {
                 fontWeight = FontWeight.Bold
             )
             Spacer(Modifier.width(6.dp))
+            IconButton(onClick = onHistoryPressed) {
+                Icon(
+                    imageVector = Icons.Rounded.History,
+                    contentDescription = "Open solve history",
+                    tint = MaterialTheme.colorScheme.onBackground
+                )
+            }
             IconButton(onClick = onAppearancePressed) {
                 Icon(
                     imageVector = Icons.Rounded.Palette,
@@ -275,9 +298,9 @@ private fun SessionStats(state: TimerUiState) {
             .padding(top = 15.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Stat("SOLVES", state.session.solveCount.toString())
-        Stat("LAST", state.session.lastSolveMillis?.let(::formatDuration) ?: "--")
-        Stat("BEST", state.session.bestSolveMillis?.let(::formatDuration) ?: "--")
+        Stat("SOLVES", state.history.stats.solveCount.toString())
+        Stat("LAST", state.history.stats.lastSolveMillis?.let(::formatDuration) ?: "--")
+        Stat("BEST", state.history.stats.bestSolveMillis?.let(::formatDuration) ?: "--")
     }
 }
 
@@ -314,7 +337,7 @@ private fun TwilightBackdrop(modifier: Modifier = Modifier) {
     }
 }
 
-private fun formatDuration(durationMillis: Long): String {
+internal fun formatDuration(durationMillis: Long): String {
     val centiseconds = (durationMillis / 10L) % 100L
     val totalSeconds = durationMillis / 1_000L
     val seconds = totalSeconds % 60L

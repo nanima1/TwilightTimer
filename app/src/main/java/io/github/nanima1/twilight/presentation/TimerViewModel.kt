@@ -1,49 +1,84 @@
 package io.github.nanima1.twilight.presentation
 
+import android.content.Context
 import android.os.SystemClock
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import io.github.nanima1.twilight.data.solve.RoomSolveRepository
+import io.github.nanima1.twilight.data.solve.TwilightDatabase
 import io.github.nanima1.twilight.domain.scramble.ScrambleGenerator
+import io.github.nanima1.twilight.domain.solve.SolveHistory
+import io.github.nanima1.twilight.domain.solve.SolveRepository
 import io.github.nanima1.twilight.domain.timer.TimerPhase
 import io.github.nanima1.twilight.domain.timer.TimerSession
 import io.github.nanima1.twilight.domain.timer.TimerSessionReducer
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 data class TimerUiState(
     val session: TimerSession = TimerSession(),
-    val scramble: String = ""
+    val scramble: String = "",
+    val history: SolveHistory = SolveHistory()
 )
 
 class TimerViewModel(
+    private val solveRepository: SolveRepository,
     private val scrambleGenerator: ScrambleGenerator = ScrambleGenerator(),
-    private val nowMillis: () -> Long = SystemClock::elapsedRealtime
+    private val elapsedRealtimeMillis: () -> Long = SystemClock::elapsedRealtime,
+    private val currentTimeMillis: () -> Long = System::currentTimeMillis
 ) : ViewModel() {
-    private val _state = MutableStateFlow(TimerUiState(scramble = scrambleGenerator.generate()))
-    val state: StateFlow<TimerUiState> = _state.asStateFlow()
+    private val session = MutableStateFlow(TimerSession())
+    private val scramble = MutableStateFlow(scrambleGenerator.generate())
+
+    val state: StateFlow<TimerUiState> = combine(
+        session,
+        scramble,
+        solveRepository.history
+    ) { currentSession, currentScramble, history ->
+        TimerUiState(
+            session = currentSession,
+            scramble = currentScramble,
+            history = history
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = TimerUiState(scramble = scramble.value)
+    )
 
     private var ticker: Job? = null
 
     fun onTimerPressed() {
-        if (_state.value.session.phase == TimerPhase.READY) {
+        if (session.value.phase == TimerPhase.READY) {
             start()
         } else {
             stop()
         }
     }
 
+    fun deleteSolve(id: Long) {
+        viewModelScope.launch {
+            solveRepository.deleteSolve(id)
+        }
+    }
+
     private fun start() {
-        _state.update { it.copy(session = TimerSessionReducer.start(it.session, nowMillis())) }
+        session.update { TimerSessionReducer.start(it, elapsedRealtimeMillis()) }
         ticker?.cancel()
         ticker = viewModelScope.launch {
             while (isActive) {
-                _state.update { it.copy(session = TimerSessionReducer.tick(it.session, nowMillis())) }
+                session.update { TimerSessionReducer.tick(it, elapsedRealtimeMillis()) }
                 delay(TICK_INTERVAL_MILLIS)
             }
         }
@@ -52,10 +87,17 @@ class TimerViewModel(
     private fun stop() {
         ticker?.cancel()
         ticker = null
-        _state.update {
-            it.copy(
-                session = TimerSessionReducer.stop(it.session, nowMillis()),
-                scramble = scrambleGenerator.generate()
+
+        val completed = TimerSessionReducer.stop(session.value, elapsedRealtimeMillis())
+        val completedScramble = scramble.value
+        session.value = completed
+        scramble.value = scrambleGenerator.generate()
+
+        viewModelScope.launch {
+            solveRepository.addSolve(
+                durationMillis = completed.elapsedMillis,
+                scramble = completedScramble,
+                completedAtEpochMillis = currentTimeMillis()
             )
         }
     }
@@ -64,7 +106,16 @@ class TimerViewModel(
         ticker?.cancel()
     }
 
-    private companion object {
-        const val TICK_INTERVAL_MILLIS = 16L
+    companion object {
+        fun factory(context: Context): ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                val database = TwilightDatabase.getInstance(context.applicationContext)
+                TimerViewModel(
+                    solveRepository = RoomSolveRepository(database.solveDao())
+                )
+            }
+        }
+
+        private const val TICK_INTERVAL_MILLIS = 16L
     }
 }
