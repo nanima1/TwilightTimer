@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -16,6 +17,7 @@ import androidx.core.view.WindowCompat
 import io.github.nanima1.twilight.presentation.TimerScreen
 import io.github.nanima1.twilight.presentation.TimerViewModel
 import io.github.nanima1.twilight.presentation.appearance.AppearanceViewModel
+import io.github.nanima1.twilight.presentation.solution.SolutionViewModel
 import io.github.nanima1.twilight.presentation.theme.TwilightTimerTheme
 
 class MainActivity : ComponentActivity() {
@@ -36,6 +38,11 @@ class MainActivity : ComponentActivity() {
             val timerFactory = remember { TimerViewModel.factory(applicationContext) }
             val timerViewModel: TimerViewModel = viewModel(factory = timerFactory)
             val timerState by timerViewModel.state.collectAsStateWithLifecycle()
+            val solutionFactory = remember {
+                SolutionViewModel.factory(initialScramble = timerState.scramble)
+            }
+            val solutionViewModel: SolutionViewModel = viewModel(factory = solutionFactory)
+            val solutionState by solutionViewModel.state.collectAsStateWithLifecycle()
             val appearanceFactory = remember { AppearanceViewModel.factory(applicationContext) }
             val appearanceViewModel: AppearanceViewModel = viewModel(factory = appearanceFactory)
             val appearanceState by appearanceViewModel.state.collectAsStateWithLifecycle()
@@ -44,10 +51,14 @@ class MainActivity : ComponentActivity() {
             ) { uri ->
                 uri?.toString()?.let(appearanceViewModel::importWallpaper)
             }
+            LaunchedEffect(timerState.scramble) {
+                solutionViewModel.solve(timerState.scramble)
+            }
 
             TwilightTimerTheme(themePreset = appearanceState.settings.themePreset) {
                 TimerScreen(
                     state = timerState,
+                    solution = solutionState,
                     appearance = appearanceState,
                     onTimerPressed = timerViewModel::onTimerPressed,
                     onSolveDeleted = timerViewModel::deleteSolve,

@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -18,10 +19,13 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -57,11 +61,13 @@ import io.github.nanima1.twilight.domain.appearance.WallpaperPosition
 import io.github.nanima1.twilight.domain.timer.TimerPhase
 import io.github.nanima1.twilight.presentation.appearance.AppearanceSheet
 import io.github.nanima1.twilight.presentation.appearance.AppearanceUiState
+import io.github.nanima1.twilight.presentation.solution.SolutionUiState
 import java.util.Locale
 
 @Composable
 fun TimerScreen(
     state: TimerUiState,
+    solution: SolutionUiState,
     appearance: AppearanceUiState,
     onTimerPressed: () -> Unit,
     onSolveDeleted: (Long) -> Unit,
@@ -95,55 +101,72 @@ fun TimerScreen(
             )
         }
         TwilightBackdrop(Modifier.fillMaxSize())
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Header(
-                onHistoryPressed = { showHistory = true },
-                onAppearancePressed = { showAppearance = true }
-            )
-            Spacer(Modifier.height(20.dp))
-            ScramblePanel(
-                scramble = state.scramble,
-                hasWallpaper = appearance.settings.wallpaperUri != null
-            )
-            Spacer(Modifier.weight(1f))
-            TimerReadout(
-                elapsedMillis = state.session.elapsedMillis,
-                isRunning = state.session.phase == TimerPhase.RUNNING,
-                onTimerPressed = onTimerPressed
-            )
-            Spacer(Modifier.height(20.dp))
-            SessionStats(state)
-            Spacer(Modifier.height(18.dp))
-            val isRunning = state.session.phase == TimerPhase.RUNNING
-            Button(
-                onClick = onTimerPressed,
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(vertical = 17.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isRunning) {
-                        MaterialTheme.colorScheme.tertiary
-                    } else {
-                        MaterialTheme.colorScheme.primary
-                    },
-                    contentColor = if (isRunning) {
-                        MaterialTheme.colorScheme.onTertiary
-                    } else {
-                        MaterialTheme.colorScheme.onPrimary
-                    }
-                ),
-                shape = RoundedCornerShape(6.dp)
+            val compactLayout = maxHeight < 700.dp
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        horizontal = 20.dp,
+                        vertical = if (compactLayout) 8.dp else 16.dp
+                    ),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = if (state.session.phase == TimerPhase.RUNNING) "Stop solve" else "Start timer",
-                    fontWeight = FontWeight.SemiBold
+                Header(
+                    onHistoryPressed = { showHistory = true },
+                    onAppearancePressed = { showAppearance = true }
                 )
+                Spacer(Modifier.height(if (compactLayout) 10.dp else 20.dp))
+                ScramblePanel(
+                    scramble = state.scramble,
+                    hasWallpaper = appearance.settings.wallpaperUri != null,
+                    compactLayout = compactLayout
+                )
+                Spacer(Modifier.height(if (compactLayout) 8.dp else 10.dp))
+                SolutionPanel(
+                    state = solution,
+                    hasWallpaper = appearance.settings.wallpaperUri != null,
+                    compactLayout = compactLayout
+                )
+                Spacer(Modifier.weight(1f))
+                TimerReadout(
+                    elapsedMillis = state.session.elapsedMillis,
+                    isRunning = state.session.phase == TimerPhase.RUNNING,
+                    onTimerPressed = onTimerPressed,
+                    compactLayout = compactLayout
+                )
+                Spacer(Modifier.height(if (compactLayout) 8.dp else 20.dp))
+                SessionStats(state, compactLayout)
+                Spacer(Modifier.height(if (compactLayout) 10.dp else 18.dp))
+                val isRunning = state.session.phase == TimerPhase.RUNNING
+                Button(
+                    onClick = onTimerPressed,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(vertical = if (compactLayout) 13.dp else 17.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isRunning) {
+                            MaterialTheme.colorScheme.tertiary
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
+                        contentColor = if (isRunning) {
+                            MaterialTheme.colorScheme.onTertiary
+                        } else {
+                            MaterialTheme.colorScheme.onPrimary
+                        }
+                    ),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = if (isRunning) "Stop solve" else "Start timer",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
         if (showHistory) {
@@ -163,6 +186,92 @@ fun TimerScreen(
                 onWallpaperScrimChanged = onWallpaperScrimChanged,
                 onWallpaperPositionChanged = onWallpaperPositionChanged,
                 onWallpaperImportErrorShown = onWallpaperImportErrorShown
+            )
+        }
+    }
+}
+
+@Composable
+private fun SolutionPanel(
+    state: SolutionUiState,
+    hasWallpaper: Boolean,
+    compactLayout: Boolean
+) {
+    val displayedSolution = when (state) {
+        is SolutionUiState.Optimized -> state.optimizedSolution
+        else -> state.immediateSolution
+    }
+    val status = when (state) {
+        is SolutionUiState.Immediate -> "INSTANT"
+        is SolutionUiState.Optimizing -> "OPTIMIZING"
+        is SolutionUiState.Optimized -> "OPTIMIZED"
+        is SolutionUiState.OptimizationFailed -> "INSTANT FALLBACK"
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = if (hasWallpaper) 0.92f else 0.82f),
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = RoundedCornerShape(6.dp),
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp
+    ) {
+        Column(
+            Modifier.padding(
+                horizontal = 16.dp,
+                vertical = if (compactLayout) 10.dp else 13.dp
+            )
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "SOLUTION",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    when (state) {
+                        is SolutionUiState.Optimizing -> CircularProgressIndicator(
+                            modifier = Modifier.width(13.dp).height(13.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        is SolutionUiState.Optimized -> Icon(
+                            imageVector = Icons.Rounded.AutoAwesome,
+                            contentDescription = null,
+                            modifier = Modifier.width(15.dp).height(15.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        is SolutionUiState.OptimizationFailed -> Icon(
+                            imageVector = Icons.Rounded.ErrorOutline,
+                            contentDescription = "Optimization unavailable",
+                            modifier = Modifier.width(15.dp).height(15.dp),
+                            tint = MaterialTheme.colorScheme.tertiary
+                        )
+                        is SolutionUiState.Immediate -> Unit
+                    }
+                    if (state !is SolutionUiState.Immediate) {
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    Text(
+                        text = "$status  ${displayedSolution.moveCount} MOVES",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+            Spacer(Modifier.height(7.dp))
+            Text(
+                text = displayedSolution.algorithm.ifEmpty { "Solved" },
+                style = MaterialTheme.typography.bodyMedium,
+                lineHeight = 21.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Medium
             )
         }
     }
@@ -219,7 +328,8 @@ private fun Header(
 @Composable
 private fun ScramblePanel(
     scramble: String,
-    hasWallpaper: Boolean
+    hasWallpaper: Boolean,
+    compactLayout: Boolean
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -229,7 +339,12 @@ private fun ScramblePanel(
         tonalElevation = 0.dp,
         shadowElevation = 0.dp
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(
+            Modifier.padding(
+                horizontal = 16.dp,
+                vertical = if (compactLayout) 12.dp else 16.dp
+            )
+        ) {
             Text(
                 text = "3 x 3 scramble",
                 style = MaterialTheme.typography.labelMedium,
@@ -250,7 +365,8 @@ private fun ScramblePanel(
 private fun TimerReadout(
     elapsedMillis: Long,
     isRunning: Boolean,
-    onTimerPressed: () -> Unit
+    onTimerPressed: () -> Unit,
+    compactLayout: Boolean
 ) {
     val timerColor = if (isRunning) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onBackground
     Column(
@@ -262,14 +378,17 @@ private fun TimerReadout(
                 role = Role.Button
                 contentDescription = if (isRunning) "Stop timer" else "Start timer"
             }
-            .padding(vertical = 18.dp, horizontal = 8.dp)
+            .padding(
+                vertical = if (compactLayout) 8.dp else 18.dp,
+                horizontal = 8.dp
+            )
     ) {
         Text(
             text = formatDuration(elapsedMillis),
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Black,
-            fontSize = 68.sp,
-            lineHeight = 74.sp,
+            fontSize = if (compactLayout) 60.sp else 68.sp,
+            lineHeight = if (compactLayout) 66.sp else 74.sp,
             color = timerColor,
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.displayLarge.copy(
@@ -280,7 +399,7 @@ private fun TimerReadout(
             ),
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(if (compactLayout) 4.dp else 8.dp))
         Text(
             text = if (isRunning) "SOLVING" else "READY",
             style = MaterialTheme.typography.labelMedium,
@@ -291,7 +410,10 @@ private fun TimerReadout(
 }
 
 @Composable
-private fun SessionStats(state: TimerUiState) {
+private fun SessionStats(
+    state: TimerUiState,
+    compactLayout: Boolean
+) {
     val dividerColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
     Row(
         modifier = Modifier
@@ -305,7 +427,7 @@ private fun SessionStats(state: TimerUiState) {
                     cap = StrokeCap.Square
                 )
             }
-            .padding(top = 15.dp),
+            .padding(top = if (compactLayout) 10.dp else 15.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Stat("SOLVES", state.history.stats.solveCount.toString())
