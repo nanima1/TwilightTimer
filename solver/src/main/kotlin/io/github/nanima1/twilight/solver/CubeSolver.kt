@@ -8,6 +8,7 @@ fun interface CubeSolver {
      * interface away from the main thread.
      *
      * @throws InvalidScrambleException when [scramble] is empty or unsupported.
+     * @throws SolverComputationException when an implementation cannot produce a solution.
      */
     fun solve(scramble: String): CubeSolution
 }
@@ -19,7 +20,10 @@ data class CubeSolution(
 )
 
 enum class SolutionMethod {
-    INVERSE_SCRAMBLE
+    INVERSE_SCRAMBLE,
+    TWO_PHASE
 }
 
 class InvalidScrambleException(message: String) : IllegalArgumentException(message)
+
+class SolverComputationException(message: String) : IllegalStateException(message)

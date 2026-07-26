@@ -8,7 +8,7 @@ Twilight Timer is an independently developed Android speedcubing timer. The firs
 - One-way UI state through `TimerViewModel`
 - Pure timer state reducer with unit tests
 - Local 3x3 scramble generator
-- Dedicated 3x3 solver module with a validated inverse-scramble baseline
+- Dedicated 3x3 solver module with instant inverse and optimized two-phase strategies
 - Three persisted theme packs with live switching
 - Private custom-wallpaper import with readability and crop-position controls
 - Room-backed solve history with live session statistics
@@ -36,13 +36,13 @@ Run the release microbenchmark on a connected Android device or emulator:
 ./gradlew.bat :benchmark:connectedReleaseAndroidTest
 ```
 
-The baseline solver returns the exact inverse of a supported scramble. It prioritizes predictable latency and correctness; it does not optimize move count.
+The inverse solver prioritizes predictable latency and correctness. The two-phase solver can produce shorter algorithms after its lookup tables are initialized; it must run away from the Android main thread.
 
 ## Roadmap
 
 1. Add penalties, comments, and session filters to solve history.
 2. Expand appearance with wallpaper positioning and curated art packs.
-3. Evaluate and integrate a two-phase 3x3 solver against the inverse-scramble baseline.
+3. Integrate progressive solution results into the timer UI without blocking interaction.
 4. Add timer inspection, statistics, and accessibility QA.
 
 ## License
