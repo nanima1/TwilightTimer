@@ -16,3 +16,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "TwilightTimer"
 include(":app")
+include(":benchmark")
+include(":solver")
