@@ -41,10 +41,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -75,32 +78,46 @@ fun TimerScreen(
     onWallpaperRequested: () -> Unit,
     onWallpaperRemoved: () -> Unit,
     onWallpaperScrimChanged: (Float) -> Unit,
+    onWallpaperPanelOpacityChanged: (Float) -> Unit,
     onWallpaperPositionChanged: (WallpaperPosition) -> Unit,
     onWallpaperImportErrorShown: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showAppearance by rememberSaveable { mutableStateOf(false) }
     var showHistory by rememberSaveable { mutableStateOf(false) }
+    val hasWallpaper = appearance.settings.wallpaperUri != null
+    val panelOpacity = if (hasWallpaper) {
+        appearance.settings.wallpaperPanelOpacity
+    } else {
+        DEFAULT_PANEL_OPACITY_WITHOUT_WALLPAPER
+    }
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        appearance.settings.wallpaperUri?.let { wallpaperUri ->
-            AsyncImage(
-                model = wallpaperUri,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                alignment = appearance.settings.wallpaperPosition.toAlignment(),
-                modifier = Modifier.fillMaxSize()
-            )
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = appearance.settings.wallpaperScrim))
-            )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer()
+        ) {
+            appearance.settings.wallpaperUri?.let { wallpaperUri ->
+                AsyncImage(
+                    model = wallpaperUri,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    alignment = appearance.settings.wallpaperPosition.toAlignment(),
+                    colorFilter = ColorFilter.tint(
+                        color = Color.Black.copy(alpha = appearance.settings.wallpaperScrim),
+                        blendMode = BlendMode.SrcOver
+                    ),
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            if (!hasWallpaper) {
+                TwilightBackdrop(Modifier.fillMaxSize())
+            }
         }
-        TwilightBackdrop(Modifier.fillMaxSize())
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
@@ -124,13 +141,13 @@ fun TimerScreen(
                 Spacer(Modifier.height(if (compactLayout) 10.dp else 20.dp))
                 ScramblePanel(
                     scramble = state.scramble,
-                    hasWallpaper = appearance.settings.wallpaperUri != null,
+                    panelOpacity = panelOpacity,
                     compactLayout = compactLayout
                 )
                 Spacer(Modifier.height(if (compactLayout) 8.dp else 10.dp))
                 SolutionPanel(
                     state = solution,
-                    hasWallpaper = appearance.settings.wallpaperUri != null,
+                    panelOpacity = panelOpacity,
                     compactLayout = compactLayout
                 )
                 Spacer(Modifier.weight(1f))
@@ -184,6 +201,7 @@ fun TimerScreen(
                 onWallpaperRequested = onWallpaperRequested,
                 onWallpaperRemoved = onWallpaperRemoved,
                 onWallpaperScrimChanged = onWallpaperScrimChanged,
+                onWallpaperPanelOpacityChanged = onWallpaperPanelOpacityChanged,
                 onWallpaperPositionChanged = onWallpaperPositionChanged,
                 onWallpaperImportErrorShown = onWallpaperImportErrorShown
             )
@@ -194,7 +212,7 @@ fun TimerScreen(
 @Composable
 private fun SolutionPanel(
     state: SolutionUiState,
-    hasWallpaper: Boolean,
+    panelOpacity: Float,
     compactLayout: Boolean
 ) {
     val displayedSolution = when (state) {
@@ -210,7 +228,7 @@ private fun SolutionPanel(
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = if (hasWallpaper) 0.92f else 0.82f),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = panelOpacity),
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = RoundedCornerShape(6.dp),
         tonalElevation = 0.dp,
@@ -328,12 +346,12 @@ private fun Header(
 @Composable
 private fun ScramblePanel(
     scramble: String,
-    hasWallpaper: Boolean,
+    panelOpacity: Float,
     compactLayout: Boolean
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = if (hasWallpaper) 0.92f else 0.82f),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = panelOpacity),
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = RoundedCornerShape(6.dp),
         tonalElevation = 0.dp,
@@ -372,6 +390,7 @@ private fun TimerReadout(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
+            .graphicsLayer()
             .clip(RoundedCornerShape(6.dp))
             .clickable(onClick = onTimerPressed)
             .semantics {
@@ -480,3 +499,5 @@ internal fun formatDuration(durationMillis: Long): String {
         String.format(Locale.US, "%d.%02d", seconds, centiseconds)
     }
 }
+
+private const val DEFAULT_PANEL_OPACITY_WITHOUT_WALLPAPER = 0.82f

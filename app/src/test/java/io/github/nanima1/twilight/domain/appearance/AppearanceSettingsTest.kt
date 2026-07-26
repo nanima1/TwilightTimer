@@ -28,6 +28,18 @@ class AppearanceSettingsTest {
     }
 
     @Test
+    fun `wallpaper panel opacity is clamped to readable bounds`() {
+        assertEquals(
+            AppearanceSettings.MIN_WALLPAPER_PANEL_OPACITY,
+            AppearanceSettings.normalizeWallpaperPanelOpacity(0.2f)
+        )
+        assertEquals(
+            AppearanceSettings.MAX_WALLPAPER_PANEL_OPACITY,
+            AppearanceSettings.normalizeWallpaperPanelOpacity(1f)
+        )
+    }
+
+    @Test
     fun `blank wallpaper uri is removed`() {
         assertNull(AppearanceSettings.normalizeWallpaperUri("   "))
         assertEquals("content://wallpaper/1", AppearanceSettings.normalizeWallpaperUri(" content://wallpaper/1 "))

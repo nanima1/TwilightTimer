@@ -64,6 +64,7 @@ fun AppearanceSheet(
     onWallpaperRequested: () -> Unit,
     onWallpaperRemoved: () -> Unit,
     onWallpaperScrimChanged: (Float) -> Unit,
+    onWallpaperPanelOpacityChanged: (Float) -> Unit,
     onWallpaperPositionChanged: (WallpaperPosition) -> Unit,
     onWallpaperImportErrorShown: () -> Unit
 ) {
@@ -71,6 +72,9 @@ fun AppearanceSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var pendingScrim by remember(settings.wallpaperScrim) {
         mutableFloatStateOf(settings.wallpaperScrim)
+    }
+    var pendingPanelOpacity by remember(settings.wallpaperPanelOpacity) {
+        mutableFloatStateOf(settings.wallpaperPanelOpacity)
     }
 
     ModalBottomSheet(
@@ -221,7 +225,11 @@ fun AppearanceSheet(
                 Text(
                     text = "${(pendingScrim * 100).roundToInt()}%",
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = if (settings.wallpaperUri == null) {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -230,6 +238,43 @@ fun AppearanceSheet(
                 onValueChange = { pendingScrim = it },
                 onValueChangeFinished = { onWallpaperScrimChanged(pendingScrim) },
                 valueRange = AppearanceSettings.MIN_WALLPAPER_SCRIM..AppearanceSettings.MAX_WALLPAPER_SCRIM,
+                enabled = settings.wallpaperUri != null,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(Modifier.height(14.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Panel opacity",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (settings.wallpaperUri == null) {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
+                )
+                Text(
+                    text = "${(pendingPanelOpacity * 100).roundToInt()}%",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (settings.wallpaperUri == null) {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Slider(
+                value = pendingPanelOpacity,
+                onValueChange = { pendingPanelOpacity = it },
+                onValueChangeFinished = {
+                    onWallpaperPanelOpacityChanged(pendingPanelOpacity)
+                },
+                valueRange = AppearanceSettings.MIN_WALLPAPER_PANEL_OPACITY..
+                    AppearanceSettings.MAX_WALLPAPER_PANEL_OPACITY,
                 enabled = settings.wallpaperUri != null,
                 modifier = Modifier.fillMaxWidth()
             )

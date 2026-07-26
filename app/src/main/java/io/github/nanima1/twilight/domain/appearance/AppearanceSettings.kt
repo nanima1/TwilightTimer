@@ -24,15 +24,22 @@ data class AppearanceSettings(
     val themePreset: ThemePreset = ThemePreset.TWILIGHT,
     val wallpaperUri: String? = null,
     val wallpaperScrim: Float = DEFAULT_WALLPAPER_SCRIM,
-    val wallpaperPosition: WallpaperPosition = WallpaperPosition.CENTER
+    val wallpaperPosition: WallpaperPosition = WallpaperPosition.CENTER,
+    val wallpaperPanelOpacity: Float = DEFAULT_WALLPAPER_PANEL_OPACITY
 ) {
     companion object {
         const val MIN_WALLPAPER_SCRIM = 0.35f
         const val DEFAULT_WALLPAPER_SCRIM = 0.58f
         const val MAX_WALLPAPER_SCRIM = 0.82f
+        const val MIN_WALLPAPER_PANEL_OPACITY = 0.72f
+        const val DEFAULT_WALLPAPER_PANEL_OPACITY = 0.9f
+        const val MAX_WALLPAPER_PANEL_OPACITY = 0.98f
 
         fun normalizeWallpaperScrim(value: Float): Float =
             value.coerceIn(MIN_WALLPAPER_SCRIM, MAX_WALLPAPER_SCRIM)
+
+        fun normalizeWallpaperPanelOpacity(value: Float): Float =
+            value.coerceIn(MIN_WALLPAPER_PANEL_OPACITY, MAX_WALLPAPER_PANEL_OPACITY)
 
         fun normalizeWallpaperUri(value: String?): String? = value?.trim()?.takeIf(String::isNotEmpty)
     }

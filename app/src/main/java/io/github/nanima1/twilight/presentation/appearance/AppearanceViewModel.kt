@@ -58,10 +58,12 @@ class AppearanceViewModel(
     fun importWallpaper(sourceUri: String) {
         viewModelScope.launch {
             operationState.value = WallpaperOperationState(isImporting = true)
-            val previousUri = state.value.settings.wallpaperUri
+            val targetSettings = state.value.settings
+            val targetTheme = targetSettings.themePreset
+            val previousUri = targetSettings.wallpaperUri
             try {
-                val importedUri = wallpaperStore.import(sourceUri)
-                repository.setWallpaperUri(importedUri)
+                val importedUri = wallpaperStore.import(sourceUri, targetTheme)
+                repository.setWallpaperUri(targetTheme, importedUri)
                 if (previousUri != importedUri) {
                     wallpaperStore.removeManaged(previousUri)
                 }
@@ -77,8 +79,9 @@ class AppearanceViewModel(
 
     fun removeWallpaper() {
         viewModelScope.launch {
-            val wallpaperUri = state.value.settings.wallpaperUri
-            repository.setWallpaperUri(null)
+            val targetSettings = state.value.settings
+            val wallpaperUri = targetSettings.wallpaperUri
+            repository.setWallpaperUri(targetSettings.themePreset, null)
             wallpaperStore.removeManaged(wallpaperUri)
             operationState.value = WallpaperOperationState()
         }
@@ -86,13 +89,19 @@ class AppearanceViewModel(
 
     fun setWallpaperScrim(scrim: Float) {
         viewModelScope.launch {
-            repository.setWallpaperScrim(scrim)
+            repository.setWallpaperScrim(state.value.settings.themePreset, scrim)
         }
     }
 
     fun setWallpaperPosition(position: WallpaperPosition) {
         viewModelScope.launch {
-            repository.setWallpaperPosition(position)
+            repository.setWallpaperPosition(state.value.settings.themePreset, position)
+        }
+    }
+
+    fun setWallpaperPanelOpacity(opacity: Float) {
+        viewModelScope.launch {
+            repository.setWallpaperPanelOpacity(state.value.settings.themePreset, opacity)
         }
     }
 

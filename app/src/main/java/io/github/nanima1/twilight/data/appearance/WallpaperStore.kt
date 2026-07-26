@@ -3,15 +3,17 @@ package io.github.nanima1.twilight.data.appearance
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
+import io.github.nanima1.twilight.domain.appearance.ThemePreset
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 interface WallpaperStore {
-    suspend fun import(sourceUri: String): String
+    suspend fun import(sourceUri: String, themePreset: ThemePreset): String
 
     suspend fun removeManaged(uriValue: String?)
 }
@@ -19,11 +21,17 @@ interface WallpaperStore {
 class FileWallpaperStore(context: Context) : WallpaperStore {
     private val appContext = context.applicationContext
     private val wallpaperDirectory = File(appContext.filesDir, "wallpapers")
-    private val wallpaperFile = File(wallpaperDirectory, "current")
 
-    override suspend fun import(sourceUri: String): String = withContext(Dispatchers.IO) {
+    override suspend fun import(
+        sourceUri: String,
+        themePreset: ThemePreset
+    ): String = withContext(Dispatchers.IO) {
         wallpaperDirectory.mkdirs()
-        val pendingFile = File(wallpaperDirectory, "pending")
+        val pendingFile = File.createTempFile("pending-${themePreset.id}-", null, wallpaperDirectory)
+        val wallpaperFile = File(
+            wallpaperDirectory,
+            "$THEME_FILE_PREFIX${themePreset.id}-${UUID.randomUUID()}"
+        )
         val source = Uri.parse(sourceUri)
 
         try {
@@ -61,12 +69,18 @@ class FileWallpaperStore(context: Context) : WallpaperStore {
 
     override suspend fun removeManaged(uriValue: String?) = withContext(Dispatchers.IO) {
         val uri = uriValue?.let(Uri::parse) ?: return@withContext
-        if (uri.scheme == "file" && File(uri.path.orEmpty()).canonicalFile == wallpaperFile.canonicalFile) {
-            wallpaperFile.delete()
-        }
+        if (uri.scheme != "file") return@withContext
+
+        val file = File(uri.path.orEmpty()).canonicalFile
+        val managedDirectory = wallpaperDirectory.canonicalFile
+        val isManagedWallpaper = file.parentFile == managedDirectory &&
+            (file.name == LEGACY_WALLPAPER_FILE || file.name.startsWith(THEME_FILE_PREFIX))
+        if (isManagedWallpaper) file.delete()
     }
 
     private companion object {
         const val MAX_WALLPAPER_BYTES = 32L * 1024L * 1024L
+        const val THEME_FILE_PREFIX = "theme-"
+        const val LEGACY_WALLPAPER_FILE = "current"
     }
 }

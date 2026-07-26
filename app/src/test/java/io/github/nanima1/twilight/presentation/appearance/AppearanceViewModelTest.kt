@@ -41,7 +41,10 @@ class AppearanceViewModelTest {
     @Test
     fun `imported wallpaper is persisted and previous managed file is removed`() = runTest {
         val repository = FakeAppearanceRepository(
-            AppearanceSettings(wallpaperUri = "file:///old")
+            AppearanceSettings(
+                themePreset = ThemePreset.SAKURA_SIGNAL,
+                wallpaperUri = "file:///old"
+            )
         )
         val wallpaperStore = FakeWallpaperStore(importedUri = "file:///new")
         val viewModel = AppearanceViewModel(repository, wallpaperStore)
@@ -53,6 +56,8 @@ class AppearanceViewModelTest {
         advanceUntilIdle()
 
         assertEquals("file:///new", repository.current.wallpaperUri)
+        assertEquals(ThemePreset.SAKURA_SIGNAL, repository.lastWallpaperTheme)
+        assertEquals(listOf(ThemePreset.SAKURA_SIGNAL), wallpaperStore.importedThemes)
         assertEquals(listOf("file:///old"), wallpaperStore.removedUris)
         assertFalse(viewModel.state.value.isWallpaperImporting)
     }
@@ -76,7 +81,10 @@ class AppearanceViewModelTest {
     @Test
     fun `wallpaper position is persisted`() = runTest {
         val repository = FakeAppearanceRepository(
-            AppearanceSettings(wallpaperUri = "file:///wallpaper")
+            AppearanceSettings(
+                themePreset = ThemePreset.MINT_CIRCUIT,
+                wallpaperUri = "file:///wallpaper"
+            )
         )
         val viewModel = AppearanceViewModel(repository, FakeWallpaperStore())
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
@@ -87,27 +95,60 @@ class AppearanceViewModelTest {
         advanceUntilIdle()
 
         assertEquals(WallpaperPosition.TOP, repository.current.wallpaperPosition)
+        assertEquals(ThemePreset.MINT_CIRCUIT, repository.lastWallpaperTheme)
+    }
+
+    @Test
+    fun `wallpaper panel opacity is persisted for the current theme`() = runTest {
+        val repository = FakeAppearanceRepository(
+            AppearanceSettings(
+                themePreset = ThemePreset.SAKURA_SIGNAL,
+                wallpaperUri = "file:///wallpaper"
+            )
+        )
+        val viewModel = AppearanceViewModel(repository, FakeWallpaperStore())
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.state.collect()
+        }
+
+        viewModel.setWallpaperPanelOpacity(0.76f)
+        advanceUntilIdle()
+
+        assertEquals(0.76f, repository.current.wallpaperPanelOpacity)
+        assertEquals(ThemePreset.SAKURA_SIGNAL, repository.lastWallpaperTheme)
     }
 
     private class FakeAppearanceRepository(initial: AppearanceSettings) : AppearanceRepository {
         private val mutableSettings = MutableStateFlow(initial)
         override val settings: Flow<AppearanceSettings> = mutableSettings
         val current: AppearanceSettings get() = mutableSettings.value
+        var lastWallpaperTheme: ThemePreset? = null
 
         override suspend fun setThemePreset(themePreset: ThemePreset) {
             mutableSettings.value = current.copy(themePreset = themePreset)
         }
 
-        override suspend fun setWallpaperUri(uri: String?) {
+        override suspend fun setWallpaperUri(themePreset: ThemePreset, uri: String?) {
+            lastWallpaperTheme = themePreset
             mutableSettings.value = current.copy(wallpaperUri = uri)
         }
 
-        override suspend fun setWallpaperScrim(scrim: Float) {
+        override suspend fun setWallpaperScrim(themePreset: ThemePreset, scrim: Float) {
+            lastWallpaperTheme = themePreset
             mutableSettings.value = current.copy(wallpaperScrim = scrim)
         }
 
-        override suspend fun setWallpaperPosition(position: WallpaperPosition) {
+        override suspend fun setWallpaperPosition(
+            themePreset: ThemePreset,
+            position: WallpaperPosition
+        ) {
+            lastWallpaperTheme = themePreset
             mutableSettings.value = current.copy(wallpaperPosition = position)
+        }
+
+        override suspend fun setWallpaperPanelOpacity(themePreset: ThemePreset, opacity: Float) {
+            lastWallpaperTheme = themePreset
+            mutableSettings.value = current.copy(wallpaperPanelOpacity = opacity)
         }
     }
 
@@ -116,9 +157,11 @@ class AppearanceViewModelTest {
         private val error: Exception? = null
     ) : WallpaperStore {
         val removedUris = mutableListOf<String?>()
+        val importedThemes = mutableListOf<ThemePreset>()
 
-        override suspend fun import(sourceUri: String): String {
+        override suspend fun import(sourceUri: String, themePreset: ThemePreset): String {
             error?.let { throw it }
+            importedThemes += themePreset
             return importedUri
         }
 
