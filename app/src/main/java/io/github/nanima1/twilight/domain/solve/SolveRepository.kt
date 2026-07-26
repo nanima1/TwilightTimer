@@ -11,5 +11,7 @@ interface SolveRepository {
         completedAtEpochMillis: Long
     )
 
+    suspend fun setPenalty(id: Long, penalty: SolvePenalty)
+
     suspend fun deleteSolve(id: Long)
 }

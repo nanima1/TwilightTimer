@@ -1,6 +1,7 @@
 package io.github.nanima1.twilight.data.solve
 
 import io.github.nanima1.twilight.domain.solve.SolveHistory
+import io.github.nanima1.twilight.domain.solve.SolvePenalty
 import io.github.nanima1.twilight.domain.solve.SolveRecord
 import io.github.nanima1.twilight.domain.solve.SolveRepository
 import io.github.nanima1.twilight.domain.solve.SolveStats
@@ -21,9 +22,14 @@ class RoomSolveRepository(
             stats = SolveStats(
                 solveCount = stats.solveCount,
                 lastSolveMillis = recentSolves.firstOrNull()?.durationMillis,
+                lastSolvePenalty = recentSolves.firstOrNull()?.penalty,
                 bestSolveMillis = stats.bestSolveMillis
             )
         )
+    }
+
+    override suspend fun setPenalty(id: Long, penalty: SolvePenalty) {
+        solveDao.setPenalty(id, penalty.id)
     }
 
     override suspend fun addSolve(
@@ -48,7 +54,8 @@ class RoomSolveRepository(
         id = id,
         durationMillis = durationMillis,
         scramble = scramble,
-        completedAtEpochMillis = completedAtEpochMillis
+        completedAtEpochMillis = completedAtEpochMillis,
+        penalty = SolvePenalty.fromId(penaltyId)
     )
 
     private companion object {

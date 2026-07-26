@@ -18,7 +18,15 @@ interface SolveDao {
 
     @Query(
         """
-        SELECT COUNT(*) AS solveCount, MIN(duration_millis) AS bestSolveMillis
+        SELECT
+            COUNT(*) AS solveCount,
+            MIN(
+                CASE penalty
+                    WHEN 'dnf' THEN NULL
+                    WHEN 'plus_two' THEN duration_millis + 2000
+                    ELSE duration_millis
+                END
+            ) AS bestSolveMillis
         FROM solves
         """
     )
@@ -26,6 +34,9 @@ interface SolveDao {
 
     @Insert
     suspend fun insert(solve: SolveEntity)
+
+    @Query("UPDATE solves SET penalty = :penaltyId WHERE id = :id")
+    suspend fun setPenalty(id: Long, penaltyId: String)
 
     @Query("DELETE FROM solves WHERE id = :id")
     suspend fun deleteById(id: Long)

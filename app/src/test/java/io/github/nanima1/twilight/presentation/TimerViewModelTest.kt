@@ -2,6 +2,7 @@ package io.github.nanima1.twilight.presentation
 
 import io.github.nanima1.twilight.domain.scramble.ScrambleGenerator
 import io.github.nanima1.twilight.domain.solve.SolveHistory
+import io.github.nanima1.twilight.domain.solve.SolvePenalty
 import io.github.nanima1.twilight.domain.solve.SolveRecord
 import io.github.nanima1.twilight.domain.solve.SolveRepository
 import io.github.nanima1.twilight.domain.solve.SolveStats
@@ -79,6 +80,24 @@ class TimerViewModelTest {
         assertEquals(8_200L, viewModel.state.value.history.stats.bestSolveMillis)
     }
 
+    @Test
+    fun `changing a solve penalty updates adjusted statistics`() = runTest {
+        val repository = FakeSolveRepository()
+        repository.addSolve(5_000L, "R U", 1_000L)
+        repository.addSolve(6_000L, "F D", 2_000L)
+        val viewModel = TimerViewModel(
+            solveRepository = repository,
+            scrambleGenerator = ScrambleGenerator(Random(25))
+        )
+
+        viewModel.setSolvePenalty(id = 1L, penalty = SolvePenalty.DNF)
+        viewModel.setSolvePenalty(id = 2L, penalty = SolvePenalty.PLUS_TWO)
+        advanceUntilIdle()
+
+        assertEquals(SolvePenalty.PLUS_TWO, viewModel.state.value.history.stats.lastSolvePenalty)
+        assertEquals(8_000L, viewModel.state.value.history.stats.bestSolveMillis)
+    }
+
     private class FakeSolveRepository : SolveRepository {
         private val mutableHistory = MutableStateFlow(SolveHistory())
         override val history: Flow<SolveHistory> = mutableHistory
@@ -103,13 +122,22 @@ class TimerViewModelTest {
             publish(current.recentSolves.filterNot { it.id == id })
         }
 
+        override suspend fun setPenalty(id: Long, penalty: SolvePenalty) {
+            publish(
+                current.recentSolves.map { solve ->
+                    if (solve.id == id) solve.copy(penalty = penalty) else solve
+                }
+            )
+        }
+
         private fun publish(solves: List<SolveRecord>) {
             mutableHistory.value = SolveHistory(
                 recentSolves = solves,
                 stats = SolveStats(
                     solveCount = solves.size.toLong(),
                     lastSolveMillis = solves.firstOrNull()?.durationMillis,
-                    bestSolveMillis = solves.minOfOrNull(SolveRecord::durationMillis)
+                    lastSolvePenalty = solves.firstOrNull()?.penalty,
+                    bestSolveMillis = solves.mapNotNull(SolveRecord::adjustedDurationMillis).minOrNull()
                 )
             )
         }

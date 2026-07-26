@@ -1,6 +1,7 @@
 package io.github.nanima1.twilight.presentation
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,8 +14,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -25,6 +30,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -32,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.nanima1.twilight.domain.solve.SolveHistory
+import io.github.nanima1.twilight.domain.solve.SolvePenalty
 import io.github.nanima1.twilight.domain.solve.SolveRecord
 import java.time.Instant
 import java.time.ZoneId
@@ -42,6 +52,7 @@ import java.time.format.DateTimeFormatter
 fun HistorySheet(
     history: SolveHistory,
     onSolveDeleted: (Long) -> Unit,
+    onSolvePenaltyChanged: (Long, SolvePenalty) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -79,7 +90,15 @@ fun HistorySheet(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 HistoryStat("SOLVES", history.stats.solveCount.toString())
-                HistoryStat("LAST", history.stats.lastSolveMillis?.let(::formatDuration) ?: "--")
+                HistoryStat(
+                    "LAST",
+                    history.stats.lastSolveMillis?.let { durationMillis ->
+                        formatSolveResult(
+                            durationMillis = durationMillis,
+                            penalty = history.stats.lastSolvePenalty ?: SolvePenalty.NONE
+                        )
+                    } ?: "--"
+                )
                 HistoryStat("BEST", history.stats.bestSolveMillis?.let(::formatDuration) ?: "--")
             }
             Spacer(Modifier.height(18.dp))
@@ -108,6 +127,9 @@ fun HistorySheet(
                     ) { solve ->
                         SolveHistoryItem(
                             solve = solve,
+                            onPenaltyChanged = { penalty ->
+                                onSolvePenaltyChanged(solve.id, penalty)
+                            },
                             onDelete = { onSolveDeleted(solve.id) }
                         )
                     }
@@ -139,8 +161,10 @@ private fun HistoryStat(label: String, value: String) {
 @Composable
 private fun SolveHistoryItem(
     solve: SolveRecord,
+    onPenaltyChanged: (SolvePenalty) -> Unit,
     onDelete: () -> Unit
 ) {
+    var showPenaltyMenu by remember(solve.id) { mutableStateOf(false) }
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(6.dp),
@@ -154,11 +178,15 @@ private fun SolveHistoryItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = formatDuration(solve.durationMillis),
+                    text = formatSolveResult(solve.durationMillis, solve.penalty),
                     style = MaterialTheme.typography.titleMedium,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = when (solve.penalty) {
+                        SolvePenalty.NONE -> MaterialTheme.colorScheme.onSurface
+                        SolvePenalty.PLUS_TWO -> MaterialTheme.colorScheme.tertiary
+                        SolvePenalty.DNF -> MaterialTheme.colorScheme.error
+                    }
                 )
                 Text(
                     text = formatCompletedAt(solve.completedAtEpochMillis),
@@ -170,6 +198,39 @@ private fun SolveHistoryItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                Box {
+                    IconButton(onClick = { showPenaltyMenu = true }) {
+                        Icon(
+                            Icons.Rounded.MoreVert,
+                            contentDescription = "Change solve penalty",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showPenaltyMenu,
+                        onDismissRequest = { showPenaltyMenu = false }
+                    ) {
+                        SolvePenalty.entries.forEach { penalty ->
+                            DropdownMenuItem(
+                                text = { Text(penalty.menuLabel()) },
+                                onClick = {
+                                    showPenaltyMenu = false
+                                    onPenaltyChanged(penalty)
+                                },
+                                trailingIcon = if (penalty == solve.penalty) {
+                                    {
+                                        Icon(
+                                            Icons.Rounded.Check,
+                                            contentDescription = null
+                                        )
+                                    }
+                                } else {
+                                    null
+                                }
+                            )
+                        }
+                    }
+                }
                 IconButton(onClick = onDelete) {
                     Icon(
                         Icons.Rounded.DeleteOutline,
@@ -196,3 +257,9 @@ private fun formatCompletedAt(epochMillis: Long): String = Instant
     .ofEpochMilli(epochMillis)
     .atZone(ZoneId.systemDefault())
     .format(historyDateFormatter)
+
+private fun SolvePenalty.menuLabel(): String = when (this) {
+    SolvePenalty.NONE -> "No penalty"
+    SolvePenalty.PLUS_TWO -> "+2 seconds"
+    SolvePenalty.DNF -> "DNF"
+}

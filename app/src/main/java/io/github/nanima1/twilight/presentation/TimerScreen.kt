@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import io.github.nanima1.twilight.domain.appearance.ThemePreset
 import io.github.nanima1.twilight.domain.appearance.WallpaperPosition
+import io.github.nanima1.twilight.domain.solve.SolvePenalty
 import io.github.nanima1.twilight.domain.timer.TimerPhase
 import io.github.nanima1.twilight.presentation.appearance.AppearanceSheet
 import io.github.nanima1.twilight.presentation.appearance.AppearanceUiState
@@ -74,6 +75,7 @@ fun TimerScreen(
     appearance: AppearanceUiState,
     onTimerPressed: () -> Unit,
     onSolveDeleted: (Long) -> Unit,
+    onSolvePenaltyChanged: (Long, SolvePenalty) -> Unit,
     onThemeSelected: (ThemePreset) -> Unit,
     onWallpaperRequested: () -> Unit,
     onWallpaperRemoved: () -> Unit,
@@ -190,6 +192,7 @@ fun TimerScreen(
             HistorySheet(
                 history = state.history,
                 onSolveDeleted = onSolveDeleted,
+                onSolvePenaltyChanged = onSolvePenaltyChanged,
                 onDismiss = { showHistory = false }
             )
         }
@@ -450,7 +453,15 @@ private fun SessionStats(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Stat("SOLVES", state.history.stats.solveCount.toString())
-        Stat("LAST", state.history.stats.lastSolveMillis?.let(::formatDuration) ?: "--")
+        Stat(
+            "LAST",
+            state.history.stats.lastSolveMillis?.let { durationMillis ->
+                formatSolveResult(
+                    durationMillis = durationMillis,
+                    penalty = state.history.stats.lastSolvePenalty ?: SolvePenalty.NONE
+                )
+            } ?: "--"
+        )
         Stat("BEST", state.history.stats.bestSolveMillis?.let(::formatDuration) ?: "--")
     }
 }
@@ -498,6 +509,12 @@ internal fun formatDuration(durationMillis: Long): String {
     } else {
         String.format(Locale.US, "%d.%02d", seconds, centiseconds)
     }
+}
+
+internal fun formatSolveResult(durationMillis: Long, penalty: SolvePenalty): String = when (penalty) {
+    SolvePenalty.NONE -> formatDuration(durationMillis)
+    SolvePenalty.PLUS_TWO -> "${formatDuration(penalty.applyTo(durationMillis) ?: 0L)} +2"
+    SolvePenalty.DNF -> "DNF"
 }
 
 private const val DEFAULT_PANEL_OPACITY_WITHOUT_WALLPAPER = 0.82f

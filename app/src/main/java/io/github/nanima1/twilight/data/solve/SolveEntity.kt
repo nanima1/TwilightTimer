@@ -4,6 +4,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import io.github.nanima1.twilight.domain.solve.SolvePenalty
 
 @Entity(
     tableName = "solves",
@@ -19,7 +20,9 @@ data class SolveEntity(
     val durationMillis: Long,
     val scramble: String,
     @ColumnInfo(name = "completed_at_epoch_millis")
-    val completedAtEpochMillis: Long
+    val completedAtEpochMillis: Long,
+    @ColumnInfo(name = "penalty", defaultValue = "'none'")
+    val penaltyId: String = SolvePenalty.NONE.id
 )
 
 data class SolveStatsEntity(

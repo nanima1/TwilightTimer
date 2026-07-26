@@ -11,6 +11,7 @@ import io.github.nanima1.twilight.data.solve.RoomSolveRepository
 import io.github.nanima1.twilight.data.solve.TwilightDatabase
 import io.github.nanima1.twilight.domain.scramble.ScrambleGenerator
 import io.github.nanima1.twilight.domain.solve.SolveHistory
+import io.github.nanima1.twilight.domain.solve.SolvePenalty
 import io.github.nanima1.twilight.domain.solve.SolveRepository
 import io.github.nanima1.twilight.domain.timer.TimerPhase
 import io.github.nanima1.twilight.domain.timer.TimerSession
@@ -70,6 +71,12 @@ class TimerViewModel(
     fun deleteSolve(id: Long) {
         viewModelScope.launch {
             solveRepository.deleteSolve(id)
+        }
+    }
+
+    fun setSolvePenalty(id: Long, penalty: SolvePenalty) {
+        viewModelScope.launch {
+            solveRepository.setPenalty(id, penalty)
         }
     }
 
