@@ -9,6 +9,7 @@ import io.github.nanima1.twilight.domain.solve.SolveRepository
 import io.github.nanima1.twilight.domain.solve.SolveStats
 import io.github.nanima1.twilight.domain.timer.TimerPhase
 import io.github.nanima1.twilight.domain.timer.InspectionCue
+import io.github.nanima1.twilight.domain.timer.TimerInputState
 import io.github.nanima1.twilight.domain.timer.TimerSettings
 import kotlin.random.Random
 import kotlinx.coroutines.Dispatchers
@@ -157,6 +158,97 @@ class TimerViewModelTest {
 
         viewModel.onTimerPressed()
         advanceUntilIdle()
+    }
+
+    @Test
+    fun `short hold returns to idle without starting`() = runTest {
+        val viewModel = TimerViewModel(
+            solveRepository = FakeSolveRepository(),
+            timerSettingsRepository = FakeTimerSettingsRepository(),
+            scrambleGenerator = ScrambleGenerator(Random(28))
+        )
+
+        viewModel.onTimerPressStarted()
+        advanceTimeBy(549L)
+        runCurrent()
+
+        assertEquals(TimerInputState.HOLDING, viewModel.state.value.inputState)
+
+        viewModel.onTimerReleased()
+
+        assertEquals(TimerInputState.IDLE, viewModel.state.value.inputState)
+        assertEquals(TimerPhase.READY, viewModel.state.value.session.phase)
+    }
+
+    @Test
+    fun `armed hold starts inspection on release`() = runTest {
+        val viewModel = TimerViewModel(
+            solveRepository = FakeSolveRepository(),
+            timerSettingsRepository = FakeTimerSettingsRepository(),
+            scrambleGenerator = ScrambleGenerator(Random(29)),
+            elapsedRealtimeMillis = { 0L }
+        )
+
+        viewModel.onTimerPressStarted()
+        advanceTimeBy(550L)
+        runCurrent()
+
+        assertEquals(TimerInputState.ARMED, viewModel.state.value.inputState)
+        assertEquals(TimerPhase.READY, viewModel.state.value.session.phase)
+
+        viewModel.onTimerReleased()
+
+        assertEquals(TimerInputState.IDLE, viewModel.state.value.inputState)
+        assertEquals(TimerPhase.INSPECTING, viewModel.state.value.session.phase)
+
+        viewModel.onTimerPressed()
+        viewModel.onTimerPressed()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `pressing down while running stops immediately`() = runTest {
+        var elapsedRealtime = 100L
+        val repository = FakeSolveRepository()
+        val viewModel = TimerViewModel(
+            solveRepository = repository,
+            timerSettingsRepository = FakeTimerSettingsRepository(),
+            scrambleGenerator = ScrambleGenerator(Random(30)),
+            elapsedRealtimeMillis = { elapsedRealtime },
+            currentTimeMillis = { 1_700_000_000_000L }
+        )
+        viewModel.onTimerPressed()
+        viewModel.onTimerPressed()
+        elapsedRealtime = 1_100L
+
+        viewModel.onTimerPressStarted()
+        advanceUntilIdle()
+
+        assertEquals(TimerPhase.READY, viewModel.state.value.session.phase)
+        assertEquals(TimerInputState.IDLE, viewModel.state.value.inputState)
+        assertEquals(1_000L, repository.current.recentSolves.single().durationMillis)
+
+        viewModel.onTimerReleased()
+        assertEquals(TimerPhase.READY, viewModel.state.value.session.phase)
+    }
+
+    @Test
+    fun `cancelled armed hold does not start`() = runTest {
+        val viewModel = TimerViewModel(
+            solveRepository = FakeSolveRepository(),
+            timerSettingsRepository = FakeTimerSettingsRepository(),
+            scrambleGenerator = ScrambleGenerator(Random(31))
+        )
+
+        viewModel.onTimerPressStarted()
+        advanceTimeBy(550L)
+        runCurrent()
+        assertEquals(TimerInputState.ARMED, viewModel.state.value.inputState)
+
+        viewModel.onTimerPressCancelled()
+
+        assertEquals(TimerInputState.IDLE, viewModel.state.value.inputState)
+        assertEquals(TimerPhase.READY, viewModel.state.value.session.phase)
     }
 
     @Test

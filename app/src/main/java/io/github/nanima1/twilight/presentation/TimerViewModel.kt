@@ -17,6 +17,7 @@ import io.github.nanima1.twilight.domain.solve.SolvePenalty
 import io.github.nanima1.twilight.domain.solve.SolveRepository
 import io.github.nanima1.twilight.domain.timer.TimerPhase
 import io.github.nanima1.twilight.domain.timer.InspectionCue
+import io.github.nanima1.twilight.domain.timer.TimerInputState
 import io.github.nanima1.twilight.domain.timer.TimerSession
 import io.github.nanima1.twilight.domain.timer.TimerSessionReducer
 import io.github.nanima1.twilight.domain.timer.TimerSettings
@@ -38,7 +39,8 @@ data class TimerUiState(
     val session: TimerSession = TimerSession(),
     val scramble: String = "",
     val history: SolveHistory = SolveHistory(),
-    val timerSettings: TimerSettings = TimerSettings()
+    val timerSettings: TimerSettings = TimerSettings(),
+    val inputState: TimerInputState = TimerInputState.IDLE
 )
 
 class TimerViewModel(
@@ -50,6 +52,7 @@ class TimerViewModel(
 ) : ViewModel() {
     private val session = MutableStateFlow(TimerSession())
     private val scramble = MutableStateFlow(scrambleGenerator.generate())
+    private val inputState = MutableStateFlow(TimerInputState.IDLE)
     private val mutableInspectionCues = MutableSharedFlow<InspectionCue>(extraBufferCapacity = 2)
     val inspectionCues: SharedFlow<InspectionCue> = mutableInspectionCues.asSharedFlow()
     private val timerSettings = timerSettingsRepository.settings.stateIn(
@@ -62,13 +65,15 @@ class TimerViewModel(
         session,
         scramble,
         solveRepository.history,
-        timerSettings
-    ) { currentSession, currentScramble, history, currentTimerSettings ->
+        timerSettings,
+        inputState
+    ) { currentSession, currentScramble, history, currentTimerSettings, currentInputState ->
         TimerUiState(
             session = currentSession,
             scramble = currentScramble,
             history = history,
-            timerSettings = currentTimerSettings
+            timerSettings = currentTimerSettings,
+            inputState = currentInputState
         )
     }.stateIn(
         scope = viewModelScope,
@@ -77,8 +82,42 @@ class TimerViewModel(
     )
 
     private var ticker: Job? = null
+    private var holdInputJob: Job? = null
+
+    fun onTimerPressStarted() {
+        if (session.value.phase == TimerPhase.RUNNING) {
+            onTimerPressed()
+            return
+        }
+        if (inputState.value != TimerInputState.IDLE) return
+
+        inputState.value = TimerInputState.HOLDING
+        holdInputJob = viewModelScope.launch {
+            delay(HOLD_TO_START_MILLIS)
+            if (inputState.value == TimerInputState.HOLDING) {
+                inputState.value = TimerInputState.ARMED
+            }
+        }
+    }
+
+    fun onTimerReleased() {
+        val wasArmed = inputState.value == TimerInputState.ARMED
+        resetTimerInput()
+        if (wasArmed) onTimerPressed()
+    }
+
+    fun onTimerPressCancelled() {
+        resetTimerInput()
+    }
+
+    private fun resetTimerInput() {
+        holdInputJob?.cancel()
+        holdInputJob = null
+        inputState.value = TimerInputState.IDLE
+    }
 
     fun onTimerPressed() {
+        if (inputState.value != TimerInputState.IDLE) resetTimerInput()
         when (session.value.phase) {
             TimerPhase.READY -> if (timerSettings.value.inspectionEnabled) {
                 beginInspection()
@@ -179,6 +218,7 @@ class TimerViewModel(
 
     override fun onCleared() {
         ticker?.cancel()
+        holdInputJob?.cancel()
     }
 
     companion object {
@@ -195,5 +235,6 @@ class TimerViewModel(
         }
 
         private const val TICK_INTERVAL_MILLIS = 16L
+        private const val HOLD_TO_START_MILLIS = 550L
     }
 }

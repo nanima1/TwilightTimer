@@ -2,12 +2,13 @@ package io.github.nanima1.twilight.presentation
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,8 +25,6 @@ import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -36,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -49,9 +49,11 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
@@ -65,6 +67,7 @@ import io.github.nanima1.twilight.domain.appearance.ThemePreset
 import io.github.nanima1.twilight.domain.appearance.WallpaperPosition
 import io.github.nanima1.twilight.domain.solve.SolvePenalty
 import io.github.nanima1.twilight.domain.timer.InspectionRules
+import io.github.nanima1.twilight.domain.timer.TimerInputState
 import io.github.nanima1.twilight.domain.timer.TimerPhase
 import io.github.nanima1.twilight.domain.timer.TimerSession
 import io.github.nanima1.twilight.presentation.appearance.AppearanceSheet
@@ -79,6 +82,9 @@ fun TimerScreen(
     solution: SolutionUiState,
     appearance: AppearanceUiState,
     onTimerPressed: () -> Unit,
+    onTimerPressStarted: () -> Unit,
+    onTimerReleased: () -> Unit,
+    onTimerPressCancelled: () -> Unit,
     onInspectionEnabledChanged: (Boolean) -> Unit,
     onInspectionHapticsEnabledChanged: (Boolean) -> Unit,
     onSolveDeleted: (Long) -> Unit,
@@ -164,44 +170,71 @@ fun TimerScreen(
                 Spacer(Modifier.weight(1f))
                 TimerReadout(
                     session = state.session,
+                    inputState = state.inputState,
                     inspectionEnabled = state.timerSettings.inspectionEnabled,
                     onTimerPressed = onTimerPressed,
+                    onTimerPressStarted = onTimerPressStarted,
+                    onTimerReleased = onTimerReleased,
+                    onTimerPressCancelled = onTimerPressCancelled,
                     compactLayout = compactLayout
                 )
                 Spacer(Modifier.height(if (compactLayout) 8.dp else 20.dp))
                 SessionStats(state, compactLayout)
                 Spacer(Modifier.height(if (compactLayout) 10.dp else 18.dp))
                 val timerPhase = state.session.phase
-                Button(
-                    onClick = onTimerPressed,
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(vertical = if (compactLayout) 13.dp else 17.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = when (timerPhase) {
-                            TimerPhase.READY -> MaterialTheme.colorScheme.primary
-                            TimerPhase.INSPECTING -> MaterialTheme.colorScheme.secondary
-                            TimerPhase.RUNNING -> MaterialTheme.colorScheme.tertiary
-                        },
-                        contentColor = when (timerPhase) {
-                            TimerPhase.READY -> MaterialTheme.colorScheme.onPrimary
-                            TimerPhase.INSPECTING -> MaterialTheme.colorScheme.onSecondary
-                            TimerPhase.RUNNING -> MaterialTheme.colorScheme.onTertiary
-                        }
-                    ),
-                    shape = RoundedCornerShape(6.dp)
+                val controlContainerColor = when (state.inputState) {
+                    TimerInputState.HOLDING -> MaterialTheme.colorScheme.tertiary
+                    TimerInputState.ARMED -> MaterialTheme.colorScheme.primary
+                    TimerInputState.IDLE -> when (timerPhase) {
+                        TimerPhase.READY -> MaterialTheme.colorScheme.primary
+                        TimerPhase.INSPECTING -> MaterialTheme.colorScheme.secondary
+                        TimerPhase.RUNNING -> MaterialTheme.colorScheme.tertiary
+                    }
+                }
+                val controlContentColor = when (state.inputState) {
+                    TimerInputState.HOLDING -> MaterialTheme.colorScheme.onTertiary
+                    TimerInputState.ARMED -> MaterialTheme.colorScheme.onPrimary
+                    TimerInputState.IDLE -> when (timerPhase) {
+                        TimerPhase.READY -> MaterialTheme.colorScheme.onPrimary
+                        TimerPhase.INSPECTING -> MaterialTheme.colorScheme.onSecondary
+                        TimerPhase.RUNNING -> MaterialTheme.colorScheme.onTertiary
+                    }
+                }
+                val actionDescription = timerActionDescription(
+                    phase = timerPhase,
+                    inspectionEnabled = state.timerSettings.inspectionEnabled
+                )
+                val pressInput = Modifier.timerPressInput(
+                    contentDescription = actionDescription,
+                    onTimerPressed = onTimerPressed,
+                    onTimerPressStarted = onTimerPressStarted,
+                    onTimerReleased = onTimerReleased,
+                    onTimerPressCancelled = onTimerPressCancelled
+                )
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(if (compactLayout) 48.dp else 56.dp)
+                        .then(pressInput),
+                    color = controlContainerColor,
+                    contentColor = controlContentColor,
+                    shape = RoundedCornerShape(6.dp),
+                    tonalElevation = 0.dp,
+                    shadowElevation = 0.dp
                 ) {
-                    Text(
-                        text = when (timerPhase) {
-                            TimerPhase.READY -> if (state.timerSettings.inspectionEnabled) {
-                                "Start inspection"
-                            } else {
-                                "Start solve"
-                            }
-                            TimerPhase.INSPECTING -> "Start solve"
-                            TimerPhase.RUNNING -> "Stop solve"
-                        },
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = timerControlLabel(
+                                phase = timerPhase,
+                                inputState = state.inputState,
+                                inspectionEnabled = state.timerSettings.inspectionEnabled
+                            ),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
         }
@@ -418,25 +451,33 @@ private fun ScramblePanel(
 @Composable
 private fun TimerReadout(
     session: TimerSession,
+    inputState: TimerInputState,
     inspectionEnabled: Boolean,
     onTimerPressed: () -> Unit,
+    onTimerPressStarted: () -> Unit,
+    onTimerReleased: () -> Unit,
+    onTimerPressCancelled: () -> Unit,
     compactLayout: Boolean
 ) {
     val inspectionPenalty = InspectionRules.penaltyFor(session.inspectionElapsedMillis)
-    val timerColor = when (session.phase) {
-        TimerPhase.READY -> when (session.penalty) {
-            SolvePenalty.NONE -> MaterialTheme.colorScheme.onBackground
-            SolvePenalty.PLUS_TWO -> MaterialTheme.colorScheme.tertiary
-            SolvePenalty.DNF -> MaterialTheme.colorScheme.error
-        }
-        TimerPhase.INSPECTING -> when (inspectionPenalty) {
-            SolvePenalty.NONE -> MaterialTheme.colorScheme.primary
-            SolvePenalty.PLUS_TWO -> MaterialTheme.colorScheme.tertiary
-            SolvePenalty.DNF -> MaterialTheme.colorScheme.error
-        }
-        TimerPhase.RUNNING -> when (session.penalty) {
-            SolvePenalty.NONE, SolvePenalty.PLUS_TWO -> MaterialTheme.colorScheme.tertiary
-            SolvePenalty.DNF -> MaterialTheme.colorScheme.error
+    val timerColor = when (inputState) {
+        TimerInputState.HOLDING -> MaterialTheme.colorScheme.tertiary
+        TimerInputState.ARMED -> MaterialTheme.colorScheme.primary
+        TimerInputState.IDLE -> when (session.phase) {
+            TimerPhase.READY -> when (session.penalty) {
+                SolvePenalty.NONE -> MaterialTheme.colorScheme.onBackground
+                SolvePenalty.PLUS_TWO -> MaterialTheme.colorScheme.tertiary
+                SolvePenalty.DNF -> MaterialTheme.colorScheme.error
+            }
+            TimerPhase.INSPECTING -> when (inspectionPenalty) {
+                SolvePenalty.NONE -> MaterialTheme.colorScheme.primary
+                SolvePenalty.PLUS_TWO -> MaterialTheme.colorScheme.tertiary
+                SolvePenalty.DNF -> MaterialTheme.colorScheme.error
+            }
+            TimerPhase.RUNNING -> when (session.penalty) {
+                SolvePenalty.NONE, SolvePenalty.PLUS_TWO -> MaterialTheme.colorScheme.tertiary
+                SolvePenalty.DNF -> MaterialTheme.colorScheme.error
+            }
         }
     }
     val readout = when (session.phase) {
@@ -444,24 +485,31 @@ private fun TimerReadout(
         TimerPhase.INSPECTING -> formatInspectionReadout(session.inspectionElapsedMillis)
         TimerPhase.RUNNING -> formatDuration(session.elapsedMillis)
     }
-    val status = when (session.phase) {
-        TimerPhase.READY -> "READY"
-        TimerPhase.INSPECTING -> when (inspectionPenalty) {
-            SolvePenalty.NONE -> "INSPECTION"
-            SolvePenalty.PLUS_TWO -> "+2 PENALTY"
-            SolvePenalty.DNF -> "DNF"
-        }
-        TimerPhase.RUNNING -> when (session.penalty) {
-            SolvePenalty.NONE -> "SOLVING"
-            SolvePenalty.PLUS_TWO -> "SOLVING +2"
-            SolvePenalty.DNF -> "SOLVING DNF"
+    val status = when (inputState) {
+        TimerInputState.HOLDING -> "HOLD"
+        TimerInputState.ARMED -> "RELEASE"
+        TimerInputState.IDLE -> when (session.phase) {
+            TimerPhase.READY -> "READY"
+            TimerPhase.INSPECTING -> when (inspectionPenalty) {
+                SolvePenalty.NONE -> "INSPECTION"
+                SolvePenalty.PLUS_TWO -> "+2 PENALTY"
+                SolvePenalty.DNF -> "DNF"
+            }
+            TimerPhase.RUNNING -> when (session.penalty) {
+                SolvePenalty.NONE -> "SOLVING"
+                SolvePenalty.PLUS_TWO -> "SOLVING +2"
+                SolvePenalty.DNF -> "SOLVING DNF"
+            }
         }
     }
-    val actionDescription = when (session.phase) {
-        TimerPhase.READY -> if (inspectionEnabled) "Start inspection" else "Start solve"
-        TimerPhase.INSPECTING -> "Start solve"
-        TimerPhase.RUNNING -> "Stop timer"
-    }
+    val actionDescription = timerActionDescription(session.phase, inspectionEnabled)
+    val pressInput = Modifier.timerPressInput(
+        contentDescription = actionDescription,
+        onTimerPressed = onTimerPressed,
+        onTimerPressStarted = onTimerPressStarted,
+        onTimerReleased = onTimerReleased,
+        onTimerPressCancelled = onTimerPressCancelled
+    )
     val readoutFontSize = when {
         readout.length >= 9 -> if (compactLayout) 44.sp else 52.sp
         readout.length >= 7 -> if (compactLayout) 52.sp else 60.sp
@@ -477,11 +525,7 @@ private fun TimerReadout(
         modifier = Modifier
             .graphicsLayer()
             .clip(RoundedCornerShape(6.dp))
-            .clickable(onClick = onTimerPressed)
-            .semantics {
-                role = Role.Button
-                contentDescription = actionDescription
-            }
+            .then(pressInput)
             .padding(
                 vertical = if (compactLayout) 8.dp else 18.dp,
                 horizontal = 8.dp
@@ -513,6 +557,71 @@ private fun TimerReadout(
             color = timerColor,
             fontWeight = FontWeight.Bold
         )
+    }
+}
+
+@Composable
+private fun Modifier.timerPressInput(
+    contentDescription: String,
+    onTimerPressed: () -> Unit,
+    onTimerPressStarted: () -> Unit,
+    onTimerReleased: () -> Unit,
+    onTimerPressCancelled: () -> Unit
+): Modifier {
+    val currentOnTimerPressed by rememberUpdatedState(onTimerPressed)
+    val currentOnTimerPressStarted by rememberUpdatedState(onTimerPressStarted)
+    val currentOnTimerReleased by rememberUpdatedState(onTimerReleased)
+    val currentOnTimerPressCancelled by rememberUpdatedState(onTimerPressCancelled)
+
+    return this
+        .pointerInput(Unit) {
+            awaitEachGesture {
+                val down = awaitFirstDown()
+                down.consume()
+                currentOnTimerPressStarted()
+                val up = waitForUpOrCancellation()
+                if (up == null) {
+                    currentOnTimerPressCancelled()
+                } else {
+                    up.consume()
+                    currentOnTimerReleased()
+                }
+            }
+        }
+        .semantics {
+            role = Role.Button
+            this.contentDescription = contentDescription
+            onClick {
+                currentOnTimerPressed()
+                true
+            }
+        }
+}
+
+private fun timerActionDescription(
+    phase: TimerPhase,
+    inspectionEnabled: Boolean
+): String = when (phase) {
+    TimerPhase.READY -> if (inspectionEnabled) "Start inspection" else "Start solve"
+    TimerPhase.INSPECTING -> "Start solve"
+    TimerPhase.RUNNING -> "Stop timer"
+}
+
+private fun timerControlLabel(
+    phase: TimerPhase,
+    inputState: TimerInputState,
+    inspectionEnabled: Boolean
+): String = when (inputState) {
+    TimerInputState.HOLDING -> "Keep holding"
+    TimerInputState.ARMED -> if (phase == TimerPhase.READY && inspectionEnabled) {
+        "Release for inspection"
+    } else {
+        "Release to start"
+    }
+    TimerInputState.IDLE -> when (phase) {
+        TimerPhase.READY -> if (inspectionEnabled) "Hold for inspection" else "Hold to start"
+        TimerPhase.INSPECTING -> "Hold to start"
+        TimerPhase.RUNNING -> "Touch to stop"
     }
 }
 

@@ -75,6 +75,9 @@ class MainActivity : ComponentActivity() {
                     solution = solutionState,
                     appearance = appearanceState,
                     onTimerPressed = timerViewModel::onTimerPressed,
+                    onTimerPressStarted = timerViewModel::onTimerPressStarted,
+                    onTimerReleased = timerViewModel::onTimerReleased,
+                    onTimerPressCancelled = timerViewModel::onTimerPressCancelled,
                     onInspectionEnabledChanged = timerViewModel::setInspectionEnabled,
                     onInspectionHapticsEnabledChanged =
                         timerViewModel::setInspectionHapticsEnabled,
