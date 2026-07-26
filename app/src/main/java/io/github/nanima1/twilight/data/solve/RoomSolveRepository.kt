@@ -35,13 +35,15 @@ class RoomSolveRepository(
     override suspend fun addSolve(
         durationMillis: Long,
         scramble: String,
-        completedAtEpochMillis: Long
+        completedAtEpochMillis: Long,
+        penalty: SolvePenalty
     ) {
         solveDao.insert(
             SolveEntity(
                 durationMillis = durationMillis.coerceAtLeast(0L),
                 scramble = scramble,
-                completedAtEpochMillis = completedAtEpochMillis
+                completedAtEpochMillis = completedAtEpochMillis,
+                penaltyId = penalty.id
             )
         )
     }

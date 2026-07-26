@@ -61,10 +61,10 @@ class TimerViewModel(
     private var ticker: Job? = null
 
     fun onTimerPressed() {
-        if (session.value.phase == TimerPhase.READY) {
-            start()
-        } else {
-            stop()
+        when (session.value.phase) {
+            TimerPhase.READY -> beginInspection()
+            TimerPhase.INSPECTING -> start()
+            TimerPhase.RUNNING -> stop()
         }
     }
 
@@ -80,8 +80,8 @@ class TimerViewModel(
         }
     }
 
-    private fun start() {
-        session.update { TimerSessionReducer.start(it, elapsedRealtimeMillis()) }
+    private fun beginInspection() {
+        session.update { TimerSessionReducer.beginInspection(it, elapsedRealtimeMillis()) }
         ticker?.cancel()
         ticker = viewModelScope.launch {
             while (isActive) {
@@ -89,6 +89,10 @@ class TimerViewModel(
                 delay(TICK_INTERVAL_MILLIS)
             }
         }
+    }
+
+    private fun start() {
+        session.update { TimerSessionReducer.start(it, elapsedRealtimeMillis()) }
     }
 
     private fun stop() {
@@ -104,7 +108,8 @@ class TimerViewModel(
             solveRepository.addSolve(
                 durationMillis = completed.elapsedMillis,
                 scramble = completedScramble,
-                completedAtEpochMillis = currentTimeMillis()
+                completedAtEpochMillis = currentTimeMillis(),
+                penalty = completed.penalty
             )
         }
     }

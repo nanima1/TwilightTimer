@@ -56,13 +56,16 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import io.github.nanima1.twilight.domain.appearance.ThemePreset
 import io.github.nanima1.twilight.domain.appearance.WallpaperPosition
 import io.github.nanima1.twilight.domain.solve.SolvePenalty
+import io.github.nanima1.twilight.domain.timer.InspectionRules
 import io.github.nanima1.twilight.domain.timer.TimerPhase
+import io.github.nanima1.twilight.domain.timer.TimerSession
 import io.github.nanima1.twilight.presentation.appearance.AppearanceSheet
 import io.github.nanima1.twilight.presentation.appearance.AppearanceUiState
 import io.github.nanima1.twilight.presentation.solution.SolutionUiState
@@ -154,35 +157,38 @@ fun TimerScreen(
                 )
                 Spacer(Modifier.weight(1f))
                 TimerReadout(
-                    elapsedMillis = state.session.elapsedMillis,
-                    isRunning = state.session.phase == TimerPhase.RUNNING,
+                    session = state.session,
                     onTimerPressed = onTimerPressed,
                     compactLayout = compactLayout
                 )
                 Spacer(Modifier.height(if (compactLayout) 8.dp else 20.dp))
                 SessionStats(state, compactLayout)
                 Spacer(Modifier.height(if (compactLayout) 10.dp else 18.dp))
-                val isRunning = state.session.phase == TimerPhase.RUNNING
+                val timerPhase = state.session.phase
                 Button(
                     onClick = onTimerPressed,
                     modifier = Modifier.fillMaxWidth(),
                     contentPadding = PaddingValues(vertical = if (compactLayout) 13.dp else 17.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isRunning) {
-                            MaterialTheme.colorScheme.tertiary
-                        } else {
-                            MaterialTheme.colorScheme.primary
+                        containerColor = when (timerPhase) {
+                            TimerPhase.READY -> MaterialTheme.colorScheme.primary
+                            TimerPhase.INSPECTING -> MaterialTheme.colorScheme.secondary
+                            TimerPhase.RUNNING -> MaterialTheme.colorScheme.tertiary
                         },
-                        contentColor = if (isRunning) {
-                            MaterialTheme.colorScheme.onTertiary
-                        } else {
-                            MaterialTheme.colorScheme.onPrimary
+                        contentColor = when (timerPhase) {
+                            TimerPhase.READY -> MaterialTheme.colorScheme.onPrimary
+                            TimerPhase.INSPECTING -> MaterialTheme.colorScheme.onSecondary
+                            TimerPhase.RUNNING -> MaterialTheme.colorScheme.onTertiary
                         }
                     ),
                     shape = RoundedCornerShape(6.dp)
                 ) {
                     Text(
-                        text = if (isRunning) "Stop solve" else "Start timer",
+                        text = when (timerPhase) {
+                            TimerPhase.READY -> "Start inspection"
+                            TimerPhase.INSPECTING -> "Start solve"
+                            TimerPhase.RUNNING -> "Stop solve"
+                        },
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -384,12 +390,60 @@ private fun ScramblePanel(
 
 @Composable
 private fun TimerReadout(
-    elapsedMillis: Long,
-    isRunning: Boolean,
+    session: TimerSession,
     onTimerPressed: () -> Unit,
     compactLayout: Boolean
 ) {
-    val timerColor = if (isRunning) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onBackground
+    val inspectionPenalty = InspectionRules.penaltyFor(session.inspectionElapsedMillis)
+    val timerColor = when (session.phase) {
+        TimerPhase.READY -> when (session.penalty) {
+            SolvePenalty.NONE -> MaterialTheme.colorScheme.onBackground
+            SolvePenalty.PLUS_TWO -> MaterialTheme.colorScheme.tertiary
+            SolvePenalty.DNF -> MaterialTheme.colorScheme.error
+        }
+        TimerPhase.INSPECTING -> when (inspectionPenalty) {
+            SolvePenalty.NONE -> MaterialTheme.colorScheme.primary
+            SolvePenalty.PLUS_TWO -> MaterialTheme.colorScheme.tertiary
+            SolvePenalty.DNF -> MaterialTheme.colorScheme.error
+        }
+        TimerPhase.RUNNING -> when (session.penalty) {
+            SolvePenalty.NONE, SolvePenalty.PLUS_TWO -> MaterialTheme.colorScheme.tertiary
+            SolvePenalty.DNF -> MaterialTheme.colorScheme.error
+        }
+    }
+    val readout = when (session.phase) {
+        TimerPhase.READY -> formatSolveResult(session.elapsedMillis, session.penalty)
+        TimerPhase.INSPECTING -> formatInspectionReadout(session.inspectionElapsedMillis)
+        TimerPhase.RUNNING -> formatDuration(session.elapsedMillis)
+    }
+    val status = when (session.phase) {
+        TimerPhase.READY -> "READY"
+        TimerPhase.INSPECTING -> when (inspectionPenalty) {
+            SolvePenalty.NONE -> "INSPECTION"
+            SolvePenalty.PLUS_TWO -> "+2 PENALTY"
+            SolvePenalty.DNF -> "DNF"
+        }
+        TimerPhase.RUNNING -> when (session.penalty) {
+            SolvePenalty.NONE -> "SOLVING"
+            SolvePenalty.PLUS_TWO -> "SOLVING +2"
+            SolvePenalty.DNF -> "SOLVING DNF"
+        }
+    }
+    val actionDescription = when (session.phase) {
+        TimerPhase.READY -> "Start inspection"
+        TimerPhase.INSPECTING -> "Start solve"
+        TimerPhase.RUNNING -> "Stop timer"
+    }
+    val readoutFontSize = when {
+        readout.length >= 9 -> if (compactLayout) 44.sp else 52.sp
+        readout.length >= 7 -> if (compactLayout) 52.sp else 60.sp
+        else -> if (compactLayout) 60.sp else 68.sp
+    }
+    val readoutLineHeight = when {
+        readout.length >= 9 -> if (compactLayout) 50.sp else 58.sp
+        readout.length >= 7 -> if (compactLayout) 58.sp else 66.sp
+        else -> if (compactLayout) 66.sp else 74.sp
+    }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -398,7 +452,7 @@ private fun TimerReadout(
             .clickable(onClick = onTimerPressed)
             .semantics {
                 role = Role.Button
-                contentDescription = if (isRunning) "Stop timer" else "Start timer"
+                contentDescription = actionDescription
             }
             .padding(
                 vertical = if (compactLayout) 8.dp else 18.dp,
@@ -406,13 +460,16 @@ private fun TimerReadout(
             )
     ) {
         Text(
-            text = formatDuration(elapsedMillis),
+            text = readout,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Black,
-            fontSize = if (compactLayout) 60.sp else 68.sp,
-            lineHeight = if (compactLayout) 66.sp else 74.sp,
+            fontSize = readoutFontSize,
+            lineHeight = readoutLineHeight,
             color = timerColor,
             textAlign = TextAlign.Center,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
             style = MaterialTheme.typography.displayLarge.copy(
                 shadow = Shadow(
                     color = timerColor.copy(alpha = 0.35f),
@@ -423,7 +480,7 @@ private fun TimerReadout(
         )
         Spacer(Modifier.height(if (compactLayout) 4.dp else 8.dp))
         Text(
-            text = if (isRunning) "SOLVING" else "READY",
+            text = status,
             style = MaterialTheme.typography.labelMedium,
             color = timerColor,
             fontWeight = FontWeight.Bold
@@ -514,6 +571,19 @@ internal fun formatDuration(durationMillis: Long): String {
 internal fun formatSolveResult(durationMillis: Long, penalty: SolvePenalty): String = when (penalty) {
     SolvePenalty.NONE -> formatDuration(durationMillis)
     SolvePenalty.PLUS_TWO -> "${formatDuration(penalty.applyTo(durationMillis) ?: 0L)} +2"
+    SolvePenalty.DNF -> "DNF"
+}
+
+internal fun formatInspectionReadout(elapsedMillis: Long): String = when (
+    InspectionRules.penaltyFor(elapsedMillis)
+) {
+    SolvePenalty.NONE -> {
+        val normalizedElapsedMillis = elapsedMillis.coerceAtLeast(0L)
+        val remainingMillis = (InspectionRules.LIMIT_MILLIS - normalizedElapsedMillis)
+            .coerceAtLeast(0L)
+        ((remainingMillis + 999L) / 1_000L).toString()
+    }
+    SolvePenalty.PLUS_TWO -> "+2"
     SolvePenalty.DNF -> "DNF"
 }
 

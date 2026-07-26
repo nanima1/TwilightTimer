@@ -49,6 +49,7 @@ class TimerViewModelTest {
         val completedScramble = viewModel.state.value.scramble
 
         viewModel.onTimerPressed()
+        viewModel.onTimerPressed()
         elapsedRealtime = 12_445L
         viewModel.onTimerPressed()
         advanceUntilIdle()
@@ -57,8 +58,33 @@ class TimerViewModelTest {
         assertEquals(12_345L, saved.durationMillis)
         assertEquals(completedScramble, saved.scramble)
         assertEquals(1_700_000_000_000L, saved.completedAtEpochMillis)
+        assertEquals(SolvePenalty.NONE, saved.penalty)
         assertEquals(1L, viewModel.state.value.history.stats.solveCount)
         assertNotEquals(completedScramble, viewModel.state.value.scramble)
+    }
+
+    @Test
+    fun `inspection penalty is saved with the completed solve`() = runTest {
+        val repository = FakeSolveRepository()
+        var elapsedRealtime = 100L
+        val viewModel = TimerViewModel(
+            solveRepository = repository,
+            scrambleGenerator = ScrambleGenerator(Random(19)),
+            elapsedRealtimeMillis = { elapsedRealtime },
+            currentTimeMillis = { 1_700_000_000_000L }
+        )
+
+        viewModel.onTimerPressed()
+        elapsedRealtime = 15_101L
+        viewModel.onTimerPressed()
+        elapsedRealtime = 18_101L
+        viewModel.onTimerPressed()
+        advanceUntilIdle()
+
+        val saved = repository.current.recentSolves.single()
+        assertEquals(3_000L, saved.durationMillis)
+        assertEquals(SolvePenalty.PLUS_TWO, saved.penalty)
+        assertEquals(5_000L, repository.current.stats.bestSolveMillis)
     }
 
     @Test
@@ -107,13 +133,15 @@ class TimerViewModelTest {
         override suspend fun addSolve(
             durationMillis: Long,
             scramble: String,
-            completedAtEpochMillis: Long
+            completedAtEpochMillis: Long,
+            penalty: SolvePenalty
         ) {
             val solve = SolveRecord(
                 id = nextId++,
                 durationMillis = durationMillis,
                 scramble = scramble,
-                completedAtEpochMillis = completedAtEpochMillis
+                completedAtEpochMillis = completedAtEpochMillis,
+                penalty = penalty
             )
             publish(listOf(solve) + current.recentSolves)
         }

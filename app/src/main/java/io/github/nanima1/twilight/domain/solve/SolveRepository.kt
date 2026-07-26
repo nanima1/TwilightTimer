@@ -8,7 +8,8 @@ interface SolveRepository {
     suspend fun addSolve(
         durationMillis: Long,
         scramble: String,
-        completedAtEpochMillis: Long
+        completedAtEpochMillis: Long,
+        penalty: SolvePenalty = SolvePenalty.NONE
     )
 
     suspend fun setPenalty(id: Long, penalty: SolvePenalty)
