@@ -11,6 +11,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.view.WindowCompat
@@ -19,6 +21,8 @@ import io.github.nanima1.twilight.presentation.TimerViewModel
 import io.github.nanima1.twilight.presentation.appearance.AppearanceViewModel
 import io.github.nanima1.twilight.presentation.solution.SolutionViewModel
 import io.github.nanima1.twilight.presentation.theme.TwilightTimerTheme
+import io.github.nanima1.twilight.domain.timer.InspectionCue
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,6 +42,7 @@ class MainActivity : ComponentActivity() {
             val timerFactory = remember { TimerViewModel.factory(applicationContext) }
             val timerViewModel: TimerViewModel = viewModel(factory = timerFactory)
             val timerState by timerViewModel.state.collectAsStateWithLifecycle()
+            val hapticFeedback = LocalHapticFeedback.current
             val solutionFactory = remember {
                 SolutionViewModel.factory(initialScramble = timerState.scramble)
             }
@@ -54,6 +59,15 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(timerState.scramble) {
                 solutionViewModel.solve(timerState.scramble)
             }
+            LaunchedEffect(timerViewModel, hapticFeedback) {
+                timerViewModel.inspectionCues.collect { cue ->
+                    val pulseCount = if (cue == InspectionCue.TWELVE_SECONDS) 2 else 1
+                    repeat(pulseCount) { index ->
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                        if (index < pulseCount - 1) delay(120L)
+                    }
+                }
+            }
 
             TwilightTimerTheme(themePreset = appearanceState.settings.themePreset) {
                 TimerScreen(
@@ -61,6 +75,9 @@ class MainActivity : ComponentActivity() {
                     solution = solutionState,
                     appearance = appearanceState,
                     onTimerPressed = timerViewModel::onTimerPressed,
+                    onInspectionEnabledChanged = timerViewModel::setInspectionEnabled,
+                    onInspectionHapticsEnabledChanged =
+                        timerViewModel::setInspectionHapticsEnabled,
                     onSolveDeleted = timerViewModel::deleteSolve,
                     onSolvePenaltyChanged = timerViewModel::setSolvePenalty,
                     onThemeSelected = appearanceViewModel::setThemePreset,

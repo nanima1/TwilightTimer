@@ -23,6 +23,7 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -68,6 +69,7 @@ import io.github.nanima1.twilight.domain.timer.TimerPhase
 import io.github.nanima1.twilight.domain.timer.TimerSession
 import io.github.nanima1.twilight.presentation.appearance.AppearanceSheet
 import io.github.nanima1.twilight.presentation.appearance.AppearanceUiState
+import io.github.nanima1.twilight.presentation.settings.TimerSettingsSheet
 import io.github.nanima1.twilight.presentation.solution.SolutionUiState
 import java.util.Locale
 
@@ -77,6 +79,8 @@ fun TimerScreen(
     solution: SolutionUiState,
     appearance: AppearanceUiState,
     onTimerPressed: () -> Unit,
+    onInspectionEnabledChanged: (Boolean) -> Unit,
+    onInspectionHapticsEnabledChanged: (Boolean) -> Unit,
     onSolveDeleted: (Long) -> Unit,
     onSolvePenaltyChanged: (Long, SolvePenalty) -> Unit,
     onThemeSelected: (ThemePreset) -> Unit,
@@ -90,6 +94,7 @@ fun TimerScreen(
 ) {
     var showAppearance by rememberSaveable { mutableStateOf(false) }
     var showHistory by rememberSaveable { mutableStateOf(false) }
+    var showTimerSettings by rememberSaveable { mutableStateOf(false) }
     val hasWallpaper = appearance.settings.wallpaperUri != null
     val panelOpacity = if (hasWallpaper) {
         appearance.settings.wallpaperPanelOpacity
@@ -141,6 +146,7 @@ fun TimerScreen(
             ) {
                 Header(
                     onHistoryPressed = { showHistory = true },
+                    onTimerSettingsPressed = { showTimerSettings = true },
                     onAppearancePressed = { showAppearance = true }
                 )
                 Spacer(Modifier.height(if (compactLayout) 10.dp else 20.dp))
@@ -158,6 +164,7 @@ fun TimerScreen(
                 Spacer(Modifier.weight(1f))
                 TimerReadout(
                     session = state.session,
+                    inspectionEnabled = state.timerSettings.inspectionEnabled,
                     onTimerPressed = onTimerPressed,
                     compactLayout = compactLayout
                 )
@@ -185,7 +192,11 @@ fun TimerScreen(
                 ) {
                     Text(
                         text = when (timerPhase) {
-                            TimerPhase.READY -> "Start inspection"
+                            TimerPhase.READY -> if (state.timerSettings.inspectionEnabled) {
+                                "Start inspection"
+                            } else {
+                                "Start solve"
+                            }
                             TimerPhase.INSPECTING -> "Start solve"
                             TimerPhase.RUNNING -> "Stop solve"
                         },
@@ -213,6 +224,14 @@ fun TimerScreen(
                 onWallpaperPanelOpacityChanged = onWallpaperPanelOpacityChanged,
                 onWallpaperPositionChanged = onWallpaperPositionChanged,
                 onWallpaperImportErrorShown = onWallpaperImportErrorShown
+            )
+        }
+        if (showTimerSettings) {
+            TimerSettingsSheet(
+                settings = state.timerSettings,
+                onInspectionEnabledChanged = onInspectionEnabledChanged,
+                onInspectionHapticsEnabledChanged = onInspectionHapticsEnabledChanged,
+                onDismiss = { showTimerSettings = false }
             )
         }
     }
@@ -313,6 +332,7 @@ private fun WallpaperPosition.toAlignment(): Alignment = when (this) {
 @Composable
 private fun Header(
     onHistoryPressed: () -> Unit,
+    onTimerSettingsPressed: () -> Unit,
     onAppearancePressed: () -> Unit
 ) {
     Row(
@@ -338,6 +358,13 @@ private fun Header(
                 Icon(
                     imageVector = Icons.Rounded.History,
                     contentDescription = "Open solve history",
+                    tint = MaterialTheme.colorScheme.onBackground
+                )
+            }
+            IconButton(onClick = onTimerSettingsPressed) {
+                Icon(
+                    imageVector = Icons.Rounded.Tune,
+                    contentDescription = "Open timing settings",
                     tint = MaterialTheme.colorScheme.onBackground
                 )
             }
@@ -391,6 +418,7 @@ private fun ScramblePanel(
 @Composable
 private fun TimerReadout(
     session: TimerSession,
+    inspectionEnabled: Boolean,
     onTimerPressed: () -> Unit,
     compactLayout: Boolean
 ) {
@@ -430,7 +458,7 @@ private fun TimerReadout(
         }
     }
     val actionDescription = when (session.phase) {
-        TimerPhase.READY -> "Start inspection"
+        TimerPhase.READY -> if (inspectionEnabled) "Start inspection" else "Start solve"
         TimerPhase.INSPECTING -> "Start solve"
         TimerPhase.RUNNING -> "Stop timer"
     }

@@ -70,4 +70,21 @@ class TimerSessionReducerTest {
 
         assertEquals(0L, running.elapsedMillis)
     }
+
+    @Test
+    fun `direct start bypasses inspection and clears the previous attempt`() {
+        val previous = TimerSession(
+            elapsedMillis = 9_876L,
+            inspectionElapsedMillis = 17_100L,
+            penalty = SolvePenalty.DNF
+        )
+
+        val running = TimerSessionReducer.startDirect(previous, nowMillis = 200L)
+
+        assertEquals(TimerPhase.RUNNING, running.phase)
+        assertEquals(200L, running.startedAtMillis)
+        assertEquals(0L, running.elapsedMillis)
+        assertEquals(0L, running.inspectionElapsedMillis)
+        assertEquals(SolvePenalty.NONE, running.penalty)
+    }
 }

@@ -1,18 +1,27 @@
 package io.github.nanima1.twilight.presentation
 
+import io.github.nanima1.twilight.data.timer.TimerSettingsRepository
 import io.github.nanima1.twilight.domain.scramble.ScrambleGenerator
 import io.github.nanima1.twilight.domain.solve.SolveHistory
 import io.github.nanima1.twilight.domain.solve.SolvePenalty
 import io.github.nanima1.twilight.domain.solve.SolveRecord
 import io.github.nanima1.twilight.domain.solve.SolveRepository
 import io.github.nanima1.twilight.domain.solve.SolveStats
+import io.github.nanima1.twilight.domain.timer.TimerPhase
+import io.github.nanima1.twilight.domain.timer.InspectionCue
+import io.github.nanima1.twilight.domain.timer.TimerSettings
 import kotlin.random.Random
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -42,6 +51,7 @@ class TimerViewModelTest {
         var elapsedRealtime = 100L
         val viewModel = TimerViewModel(
             solveRepository = repository,
+            timerSettingsRepository = FakeTimerSettingsRepository(),
             scrambleGenerator = ScrambleGenerator(Random(17)),
             elapsedRealtimeMillis = { elapsedRealtime },
             currentTimeMillis = { 1_700_000_000_000L }
@@ -69,6 +79,7 @@ class TimerViewModelTest {
         var elapsedRealtime = 100L
         val viewModel = TimerViewModel(
             solveRepository = repository,
+            timerSettingsRepository = FakeTimerSettingsRepository(),
             scrambleGenerator = ScrambleGenerator(Random(19)),
             elapsedRealtimeMillis = { elapsedRealtime },
             currentTimeMillis = { 1_700_000_000_000L }
@@ -94,6 +105,7 @@ class TimerViewModelTest {
         repository.addSolve(9_400L, "F D", 2_000L)
         val viewModel = TimerViewModel(
             solveRepository = repository,
+            timerSettingsRepository = FakeTimerSettingsRepository(),
             scrambleGenerator = ScrambleGenerator(Random(21))
         )
         advanceUntilIdle()
@@ -113,6 +125,7 @@ class TimerViewModelTest {
         repository.addSolve(6_000L, "F D", 2_000L)
         val viewModel = TimerViewModel(
             solveRepository = repository,
+            timerSettingsRepository = FakeTimerSettingsRepository(),
             scrambleGenerator = ScrambleGenerator(Random(25))
         )
 
@@ -122,6 +135,125 @@ class TimerViewModelTest {
 
         assertEquals(SolvePenalty.PLUS_TWO, viewModel.state.value.history.stats.lastSolvePenalty)
         assertEquals(8_000L, viewModel.state.value.history.stats.bestSolveMillis)
+    }
+
+    @Test
+    fun `disabled inspection starts the timer immediately`() = runTest {
+        val settingsRepository = FakeTimerSettingsRepository(
+            TimerSettings(inspectionEnabled = false)
+        )
+        val viewModel = TimerViewModel(
+            solveRepository = FakeSolveRepository(),
+            timerSettingsRepository = settingsRepository,
+            scrambleGenerator = ScrambleGenerator(Random(27)),
+            elapsedRealtimeMillis = { 500L }
+        )
+        advanceUntilIdle()
+
+        viewModel.onTimerPressed()
+
+        assertEquals(TimerPhase.RUNNING, viewModel.state.value.session.phase)
+        assertEquals(500L, viewModel.state.value.session.startedAtMillis)
+
+        viewModel.onTimerPressed()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `inspection emits haptic cues once at eight and twelve seconds`() = runTest {
+        var elapsedRealtime = 0L
+        val viewModel = TimerViewModel(
+            solveRepository = FakeSolveRepository(),
+            timerSettingsRepository = FakeTimerSettingsRepository(),
+            scrambleGenerator = ScrambleGenerator(Random(29)),
+            elapsedRealtimeMillis = { elapsedRealtime }
+        )
+        val cues = mutableListOf<InspectionCue>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.inspectionCues.take(2).toList(cues)
+        }
+
+        viewModel.onTimerPressed()
+        elapsedRealtime = 7_999L
+        advanceTimeBy(16L)
+        runCurrent()
+        assertEquals(emptyList<InspectionCue>(), cues)
+
+        elapsedRealtime = 8_000L
+        advanceTimeBy(16L)
+        elapsedRealtime = 12_000L
+        advanceTimeBy(16L)
+        runCurrent()
+
+        assertEquals(
+            listOf(InspectionCue.EIGHT_SECONDS, InspectionCue.TWELVE_SECONDS),
+            cues
+        )
+
+        viewModel.onTimerPressed()
+        viewModel.onTimerPressed()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `disabled inspection haptics emit no cues`() = runTest {
+        var elapsedRealtime = 0L
+        val viewModel = TimerViewModel(
+            solveRepository = FakeSolveRepository(),
+            timerSettingsRepository = FakeTimerSettingsRepository(
+                TimerSettings(inspectionHapticsEnabled = false)
+            ),
+            scrambleGenerator = ScrambleGenerator(Random(30)),
+            elapsedRealtimeMillis = { elapsedRealtime }
+        )
+        val cues = mutableListOf<InspectionCue>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.inspectionCues.take(1).toList(cues)
+        }
+
+        viewModel.onTimerPressed()
+        elapsedRealtime = 12_000L
+        advanceTimeBy(16L)
+        runCurrent()
+
+        assertEquals(emptyList<InspectionCue>(), cues)
+
+        viewModel.onTimerPressed()
+        viewModel.onTimerPressed()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `inspection controls update persisted timer settings`() = runTest {
+        val viewModel = TimerViewModel(
+            solveRepository = FakeSolveRepository(),
+            timerSettingsRepository = FakeTimerSettingsRepository(),
+            scrambleGenerator = ScrambleGenerator(Random(31))
+        )
+
+        viewModel.setInspectionEnabled(false)
+        viewModel.setInspectionHapticsEnabled(false)
+        advanceUntilIdle()
+
+        assertEquals(false, viewModel.state.value.timerSettings.inspectionEnabled)
+        assertEquals(false, viewModel.state.value.timerSettings.inspectionHapticsEnabled)
+    }
+
+    private class FakeTimerSettingsRepository(
+        initial: TimerSettings = TimerSettings()
+    ) : TimerSettingsRepository {
+        private val mutableSettings = MutableStateFlow(initial)
+        override val settings: Flow<TimerSettings> = mutableSettings
+
+        override suspend fun setInspectionEnabled(enabled: Boolean) {
+            mutableSettings.value = mutableSettings.value.copy(inspectionEnabled = enabled)
+        }
+
+        override suspend fun setInspectionHapticsEnabled(enabled: Boolean) {
+            mutableSettings.value = mutableSettings.value.copy(
+                inspectionHapticsEnabled = enabled
+            )
+        }
     }
 
     private class FakeSolveRepository : SolveRepository {

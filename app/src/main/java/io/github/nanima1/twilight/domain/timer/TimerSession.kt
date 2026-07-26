@@ -28,6 +28,19 @@ object InspectionRules {
 }
 
 object TimerSessionReducer {
+    fun startDirect(session: TimerSession, nowMillis: Long): TimerSession {
+        check(session.phase == TimerPhase.READY) {
+            "A direct timer start can only begin from the ready state."
+        }
+        return session.copy(
+            phase = TimerPhase.RUNNING,
+            startedAtMillis = nowMillis,
+            elapsedMillis = 0L,
+            inspectionElapsedMillis = 0L,
+            penalty = SolvePenalty.NONE
+        )
+    }
+
     fun beginInspection(session: TimerSession, nowMillis: Long): TimerSession {
         check(session.phase == TimerPhase.READY) {
             "Inspection can only begin from the ready state."
