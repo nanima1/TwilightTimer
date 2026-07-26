@@ -178,9 +178,13 @@ fun TimerScreen(
                     onTimerPressCancelled = onTimerPressCancelled,
                     compactLayout = compactLayout
                 )
-                Spacer(Modifier.height(if (compactLayout) 8.dp else 20.dp))
-                SessionStats(state, compactLayout)
-                Spacer(Modifier.height(if (compactLayout) 10.dp else 18.dp))
+                if (compactLayout) {
+                    Spacer(Modifier.height(8.dp))
+                } else {
+                    Spacer(Modifier.height(20.dp))
+                    SessionStats(state, compactLayout = false)
+                    Spacer(Modifier.height(18.dp))
+                }
                 val timerPhase = state.session.phase
                 val controlContainerColor = when (state.inputState) {
                     TimerInputState.HOLDING -> MaterialTheme.colorScheme.tertiary
