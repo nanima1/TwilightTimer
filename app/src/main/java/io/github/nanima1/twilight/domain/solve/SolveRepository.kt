@@ -14,5 +14,7 @@ interface SolveRepository {
 
     suspend fun setPenalty(id: Long, penalty: SolvePenalty)
 
+    suspend fun setNote(id: Long, note: String?)
+
     suspend fun deleteSolve(id: Long)
 }

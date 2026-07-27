@@ -22,7 +22,8 @@ data class SolveEntity(
     @ColumnInfo(name = "completed_at_epoch_millis")
     val completedAtEpochMillis: Long,
     @ColumnInfo(name = "penalty", defaultValue = "'none'")
-    val penaltyId: String = SolvePenalty.NONE.id
+    val penaltyId: String = SolvePenalty.NONE.id,
+    val note: String? = null
 )
 
 data class SolveStatsEntity(

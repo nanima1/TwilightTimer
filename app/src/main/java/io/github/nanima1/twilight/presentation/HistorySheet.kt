@@ -17,7 +17,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -26,8 +28,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.nanima1.twilight.domain.solve.SolveHistory
 import io.github.nanima1.twilight.domain.solve.SolvePenalty
@@ -53,9 +58,11 @@ fun HistorySheet(
     history: SolveHistory,
     onSolveDeleted: (Long) -> Unit,
     onSolvePenaltyChanged: (Long, SolvePenalty) -> Unit,
+    onSolveNoteChanged: (Long, String?) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var noteEditorSolve by remember { mutableStateOf<SolveRecord?>(null) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -130,12 +137,20 @@ fun HistorySheet(
                             onPenaltyChanged = { penalty ->
                                 onSolvePenaltyChanged(solve.id, penalty)
                             },
+                            onEditNote = { noteEditorSolve = solve },
                             onDelete = { onSolveDeleted(solve.id) }
                         )
                     }
                 }
             }
         }
+    }
+    noteEditorSolve?.let { solve ->
+        SolveNoteDialog(
+            solve = solve,
+            onSave = { note -> onSolveNoteChanged(solve.id, note) },
+            onDismiss = { noteEditorSolve = null }
+        )
     }
 }
 
@@ -162,6 +177,7 @@ private fun HistoryStat(label: String, value: String) {
 private fun SolveHistoryItem(
     solve: SolveRecord,
     onPenaltyChanged: (SolvePenalty) -> Unit,
+    onEditNote: () -> Unit,
     onDelete: () -> Unit
 ) {
     var showPenaltyMenu by remember(solve.id) { mutableStateOf(false) }
@@ -202,7 +218,7 @@ private fun SolveHistoryItem(
                     IconButton(onClick = { showPenaltyMenu = true }) {
                         Icon(
                             Icons.Rounded.MoreVert,
-                            contentDescription = "Change solve penalty",
+                            contentDescription = "Open solve actions",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -210,6 +226,19 @@ private fun SolveHistoryItem(
                         expanded = showPenaltyMenu,
                         onDismissRequest = { showPenaltyMenu = false }
                     ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(if (solve.note == null) "Add note" else "Edit note")
+                            },
+                            onClick = {
+                                showPenaltyMenu = false
+                                onEditNote()
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Rounded.EditNote, contentDescription = null)
+                            }
+                        )
+                        HorizontalDivider()
                         SolvePenalty.entries.forEach { penalty ->
                             DropdownMenuItem(
                                 text = { Text(penalty.menuLabel()) },
@@ -247,8 +276,67 @@ private fun SolveHistoryItem(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
+            solve.note?.let { note ->
+                Text(
+                    text = note,
+                    modifier = Modifier.padding(top = 6.dp, end = 14.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun SolveNoteDialog(
+    solve: SolveRecord,
+    onSave: (String?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var note by remember(solve.id, solve.note) { mutableStateOf(solve.note.orEmpty()) }
+    val normalizedNote = SolveRecord.normalizeNote(note)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Rounded.EditNote, contentDescription = null) },
+        title = { Text("Solve note") },
+        text = {
+            OutlinedTextField(
+                value = note,
+                onValueChange = { note = it.take(SolveRecord.MAX_NOTE_LENGTH) },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Note") },
+                minLines = 3,
+                maxLines = 5,
+                supportingText = {
+                    Text(
+                        text = "${note.length}/${SolveRecord.MAX_NOTE_LENGTH}",
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.End
+                    )
+                }
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onSave(note)
+                    onDismiss()
+                },
+                enabled = normalizedNote != solve.note
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 private val historyDateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d, HH:mm")

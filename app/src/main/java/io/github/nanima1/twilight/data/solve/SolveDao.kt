@@ -38,6 +38,9 @@ interface SolveDao {
     @Query("UPDATE solves SET penalty = :penaltyId WHERE id = :id")
     suspend fun setPenalty(id: Long, penaltyId: String)
 
+    @Query("UPDATE solves SET note = :note WHERE id = :id")
+    suspend fun setNote(id: Long, note: String?)
+
     @Query("DELETE FROM solves WHERE id = :id")
     suspend fun deleteById(id: Long)
 }

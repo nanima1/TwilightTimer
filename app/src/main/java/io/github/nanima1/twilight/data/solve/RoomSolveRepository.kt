@@ -32,6 +32,10 @@ class RoomSolveRepository(
         solveDao.setPenalty(id, penalty.id)
     }
 
+    override suspend fun setNote(id: Long, note: String?) {
+        solveDao.setNote(id, SolveRecord.normalizeNote(note))
+    }
+
     override suspend fun addSolve(
         durationMillis: Long,
         scramble: String,
@@ -57,7 +61,8 @@ class RoomSolveRepository(
         durationMillis = durationMillis,
         scramble = scramble,
         completedAtEpochMillis = completedAtEpochMillis,
-        penalty = SolvePenalty.fromId(penaltyId)
+        penalty = SolvePenalty.fromId(penaltyId),
+        note = SolveRecord.normalizeNote(note)
     )
 
     private companion object {

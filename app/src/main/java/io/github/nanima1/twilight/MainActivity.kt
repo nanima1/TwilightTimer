@@ -83,6 +83,7 @@ class MainActivity : ComponentActivity() {
                         timerViewModel::setInspectionHapticsEnabled,
                     onSolveDeleted = timerViewModel::deleteSolve,
                     onSolvePenaltyChanged = timerViewModel::setSolvePenalty,
+                    onSolveNoteChanged = timerViewModel::setSolveNote,
                     onThemeSelected = appearanceViewModel::setThemePreset,
                     onWallpaperRequested = { wallpaperPicker.launch(arrayOf("image/*")) },
                     onWallpaperRemoved = appearanceViewModel::removeWallpaper,

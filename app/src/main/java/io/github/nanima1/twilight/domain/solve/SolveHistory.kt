@@ -27,10 +27,20 @@ data class SolveRecord(
     val durationMillis: Long,
     val scramble: String,
     val completedAtEpochMillis: Long,
-    val penalty: SolvePenalty = SolvePenalty.NONE
+    val penalty: SolvePenalty = SolvePenalty.NONE,
+    val note: String? = null
 ) {
     val adjustedDurationMillis: Long?
         get() = penalty.applyTo(durationMillis)
+
+    companion object {
+        const val MAX_NOTE_LENGTH = 240
+
+        fun normalizeNote(value: String?): String? = value
+            ?.trim()
+            ?.take(MAX_NOTE_LENGTH)
+            ?.takeIf(String::isNotEmpty)
+    }
 }
 
 data class SolveStats(

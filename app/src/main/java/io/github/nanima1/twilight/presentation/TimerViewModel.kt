@@ -141,6 +141,12 @@ class TimerViewModel(
         }
     }
 
+    fun setSolveNote(id: Long, note: String?) {
+        viewModelScope.launch {
+            solveRepository.setNote(id, note)
+        }
+    }
+
     fun setInspectionEnabled(enabled: Boolean) {
         viewModelScope.launch {
             timerSettingsRepository.setInspectionEnabled(enabled)

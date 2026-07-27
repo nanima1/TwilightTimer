@@ -89,6 +89,7 @@ fun TimerScreen(
     onInspectionHapticsEnabledChanged: (Boolean) -> Unit,
     onSolveDeleted: (Long) -> Unit,
     onSolvePenaltyChanged: (Long, SolvePenalty) -> Unit,
+    onSolveNoteChanged: (Long, String?) -> Unit,
     onThemeSelected: (ThemePreset) -> Unit,
     onWallpaperRequested: () -> Unit,
     onWallpaperRemoved: () -> Unit,
@@ -247,6 +248,7 @@ fun TimerScreen(
                 history = state.history,
                 onSolveDeleted = onSolveDeleted,
                 onSolvePenaltyChanged = onSolvePenaltyChanged,
+                onSolveNoteChanged = onSolveNoteChanged,
                 onDismiss = { showHistory = false }
             )
         }

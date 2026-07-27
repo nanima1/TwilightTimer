@@ -29,6 +29,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 
@@ -136,6 +137,25 @@ class TimerViewModelTest {
 
         assertEquals(SolvePenalty.PLUS_TWO, viewModel.state.value.history.stats.lastSolvePenalty)
         assertEquals(8_000L, viewModel.state.value.history.stats.bestSolveMillis)
+    }
+
+    @Test
+    fun `changing a solve note updates history and blank text clears it`() = runTest {
+        val repository = FakeSolveRepository()
+        repository.addSolve(5_000L, "R U", 1_000L)
+        val viewModel = TimerViewModel(
+            solveRepository = repository,
+            timerSettingsRepository = FakeTimerSettingsRepository(),
+            scrambleGenerator = ScrambleGenerator(Random(26))
+        )
+
+        viewModel.setSolveNote(id = 1L, note = "  Smooth execution  ")
+        advanceUntilIdle()
+        assertEquals("Smooth execution", viewModel.state.value.history.recentSolves.single().note)
+
+        viewModel.setSolveNote(id = 1L, note = "  ")
+        advanceUntilIdle()
+        assertNull(viewModel.state.value.history.recentSolves.single().note)
     }
 
     @Test
@@ -378,6 +398,18 @@ class TimerViewModelTest {
             publish(
                 current.recentSolves.map { solve ->
                     if (solve.id == id) solve.copy(penalty = penalty) else solve
+                }
+            )
+        }
+
+        override suspend fun setNote(id: Long, note: String?) {
+            publish(
+                current.recentSolves.map { solve ->
+                    if (solve.id == id) {
+                        solve.copy(note = SolveRecord.normalizeNote(note))
+                    } else {
+                        solve
+                    }
                 }
             )
         }
