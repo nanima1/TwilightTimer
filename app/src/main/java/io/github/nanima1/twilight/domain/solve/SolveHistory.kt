@@ -80,6 +80,30 @@ data class SolveRecord(
     }
 }
 
+data class SolveTrendPoint(
+    val solveId: Long,
+    val completedAtEpochMillis: Long,
+    val adjustedDurationMillis: Long?
+)
+
+fun buildSolveTrend(
+    solves: List<SolveRecord>,
+    maxPoints: Int = DEFAULT_TREND_POINT_LIMIT
+): List<SolveTrendPoint> {
+    require(maxPoints > 0)
+    return solves
+        .sortedWith(newestSolveComparator)
+        .take(maxPoints)
+        .asReversed()
+        .map { solve ->
+            SolveTrendPoint(
+                solveId = solve.id,
+                completedAtEpochMillis = solve.completedAtEpochMillis,
+                adjustedDurationMillis = solve.adjustedDurationMillis
+            )
+        }
+}
+
 sealed interface SolveAverage {
     data class Time(val durationMillis: Long) : SolveAverage {
         init {
@@ -98,10 +122,7 @@ fun calculateWcaAverage(
 ): SolveAverage {
     require(sampleSize >= 3)
     val sample = solves
-        .sortedWith(
-            compareByDescending<SolveRecord> { it.completedAtEpochMillis }
-                .thenByDescending(SolveRecord::id)
-        )
+        .sortedWith(newestSolveComparator)
         .take(sampleSize)
     if (sample.size < sampleSize) return SolveAverage.Unavailable
 
@@ -138,3 +159,7 @@ data class SolveHistory(
 )
 
 private const val MILLIS_PER_CENTISECOND = 10L
+private const val DEFAULT_TREND_POINT_LIMIT = 20
+private val newestSolveComparator: Comparator<SolveRecord> =
+    compareByDescending<SolveRecord> { it.completedAtEpochMillis }
+        .thenByDescending(SolveRecord::id)
