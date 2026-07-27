@@ -6,6 +6,7 @@ import io.github.nanima1.twilight.domain.solve.SolvePenalty
 import io.github.nanima1.twilight.domain.solve.SolveRecord
 import io.github.nanima1.twilight.domain.solve.SolveRepository
 import io.github.nanima1.twilight.domain.solve.SolveStats
+import io.github.nanima1.twilight.domain.solve.calculateWcaAverage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
@@ -24,7 +25,9 @@ class RoomSolveRepository(
                 solveCount = stats.solveCount,
                 lastSolveMillis = recentSolves.firstOrNull()?.durationMillis,
                 lastSolvePenalty = recentSolves.firstOrNull()?.penalty,
-                bestSolveMillis = stats.bestSolveMillis
+                bestSolveMillis = stats.bestSolveMillis,
+                averageOf5 = calculateWcaAverage(recentSolves, 5),
+                averageOf12 = calculateWcaAverage(recentSolves, 12)
             )
         )
     }

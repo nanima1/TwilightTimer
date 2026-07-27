@@ -80,14 +80,61 @@ data class SolveRecord(
     }
 }
 
+sealed interface SolveAverage {
+    data class Time(val durationMillis: Long) : SolveAverage {
+        init {
+            require(durationMillis >= 0L)
+        }
+    }
+
+    data object Dnf : SolveAverage
+
+    data object Unavailable : SolveAverage
+}
+
+fun calculateWcaAverage(
+    solves: List<SolveRecord>,
+    sampleSize: Int
+): SolveAverage {
+    require(sampleSize >= 3)
+    val sample = solves
+        .sortedWith(
+            compareByDescending<SolveRecord> { it.completedAtEpochMillis }
+                .thenByDescending(SolveRecord::id)
+        )
+        .take(sampleSize)
+    if (sample.size < sampleSize) return SolveAverage.Unavailable
+
+    // WCA-style averages trim at displayed centisecond precision.
+    val validCentiseconds = sample
+        .mapNotNull { solve -> solve.adjustedDurationMillis?.div(MILLIS_PER_CENTISECOND) }
+        .sorted()
+    val dnfCount = sampleSize - validCentiseconds.size
+    if (dnfCount >= 2) return SolveAverage.Dnf
+
+    val trimmedCentiseconds = if (dnfCount == 1) {
+        validCentiseconds.drop(1)
+    } else {
+        validCentiseconds.drop(1).dropLast(1)
+    }
+    val totalCentiseconds = trimmedCentiseconds.sum()
+    val roundedAverageCentiseconds =
+        (totalCentiseconds + trimmedCentiseconds.size / 2L) / trimmedCentiseconds.size
+    return SolveAverage.Time(roundedAverageCentiseconds * MILLIS_PER_CENTISECOND)
+}
+
 data class SolveStats(
     val solveCount: Long = 0L,
     val lastSolveMillis: Long? = null,
     val lastSolvePenalty: SolvePenalty? = null,
-    val bestSolveMillis: Long? = null
+    val bestSolveMillis: Long? = null,
+    val averageOf5: SolveAverage = SolveAverage.Unavailable,
+    val averageOf12: SolveAverage = SolveAverage.Unavailable
 )
 
 data class SolveHistory(
     val recentSolves: List<SolveRecord> = emptyList(),
     val stats: SolveStats = SolveStats()
 )
+
+private const val MILLIS_PER_CENTISECOND = 10L

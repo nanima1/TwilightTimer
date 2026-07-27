@@ -9,6 +9,7 @@ import io.github.nanima1.twilight.domain.solve.SolvePenalty
 import io.github.nanima1.twilight.domain.solve.SolveRecord
 import io.github.nanima1.twilight.domain.solve.SolveRepository
 import io.github.nanima1.twilight.domain.solve.SolveStats
+import io.github.nanima1.twilight.domain.solve.calculateWcaAverage
 import io.github.nanima1.twilight.domain.timer.TimerPhase
 import io.github.nanima1.twilight.domain.timer.InspectionCue
 import io.github.nanima1.twilight.domain.timer.TimerInputState
@@ -456,7 +457,9 @@ class TimerViewModelTest {
                     solveCount = size.toLong(),
                     lastSolveMillis = firstOrNull()?.durationMillis,
                     lastSolvePenalty = firstOrNull()?.penalty,
-                    bestSolveMillis = mapNotNull(SolveRecord::adjustedDurationMillis).minOrNull()
+                    bestSolveMillis = mapNotNull(SolveRecord::adjustedDurationMillis).minOrNull(),
+                    averageOf5 = calculateWcaAverage(this, 5),
+                    averageOf12 = calculateWcaAverage(this, 12)
                 )
             )
     }

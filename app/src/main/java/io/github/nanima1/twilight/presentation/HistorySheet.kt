@@ -48,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.github.nanima1.twilight.domain.solve.SolveAverage
 import io.github.nanima1.twilight.domain.solve.SolveHistory
 import io.github.nanima1.twilight.domain.solve.SolveHistoryFilter
 import io.github.nanima1.twilight.domain.solve.SolvePenalty
@@ -117,19 +118,44 @@ fun HistorySheet(
             Spacer(Modifier.height(16.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                HistoryStat("SOLVES", history.stats.solveCount.toString())
                 HistoryStat(
-                    "LAST",
-                    history.stats.lastSolveMillis?.let { durationMillis ->
+                    label = "SOLVES",
+                    value = history.stats.solveCount.toString(),
+                    modifier = Modifier.weight(1f)
+                )
+                HistoryStat(
+                    label = "LAST",
+                    value = history.stats.lastSolveMillis?.let { durationMillis ->
                         formatSolveResult(
                             durationMillis = durationMillis,
                             penalty = history.stats.lastSolvePenalty ?: SolvePenalty.NONE
                         )
-                    } ?: "--"
+                    } ?: "--",
+                    modifier = Modifier.weight(1f),
+                    isDnf = history.stats.lastSolvePenalty == SolvePenalty.DNF
                 )
-                HistoryStat("BEST", history.stats.bestSolveMillis?.let(::formatDuration) ?: "--")
+                HistoryStat(
+                    label = "BEST",
+                    value = history.stats.bestSolveMillis?.let(::formatDuration) ?: "--",
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth()) {
+                HistoryStat(
+                    label = "AO5",
+                    value = history.stats.averageOf5.displayValue(),
+                    modifier = Modifier.weight(1f),
+                    isDnf = history.stats.averageOf5 == SolveAverage.Dnf
+                )
+                HistoryStat(
+                    label = "AO12",
+                    value = history.stats.averageOf12.displayValue(),
+                    modifier = Modifier.weight(1f),
+                    isDnf = history.stats.averageOf12 == SolveAverage.Dnf
+                )
             }
             Spacer(Modifier.height(18.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -178,8 +204,16 @@ fun HistorySheet(
 }
 
 @Composable
-private fun HistoryStat(label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun HistoryStat(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    isDnf: Boolean = false
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
@@ -191,7 +225,11 @@ private fun HistoryStat(label: String, value: String) {
             style = MaterialTheme.typography.titleMedium,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
+            color = if (isDnf) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.primary
+            }
         )
     }
 }
@@ -380,4 +418,10 @@ private fun SolveHistoryFilter.shortLabel(): String = when (this) {
     SolveHistoryFilter.TODAY -> "Today"
     SolveHistoryFilter.LAST_7_DAYS -> "7D"
     SolveHistoryFilter.LAST_30_DAYS -> "30D"
+}
+
+private fun SolveAverage.displayValue(): String = when (this) {
+    is SolveAverage.Time -> formatDuration(durationMillis)
+    SolveAverage.Dnf -> "DNF"
+    SolveAverage.Unavailable -> "--"
 }

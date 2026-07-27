@@ -1,5 +1,6 @@
 package io.github.nanima1.twilight.data.solve
 
+import io.github.nanima1.twilight.domain.solve.SolveAverage
 import io.github.nanima1.twilight.domain.solve.SolveHistoryQuery
 import io.github.nanima1.twilight.domain.solve.SolveRecord
 import kotlinx.coroutines.flow.Flow
@@ -66,6 +67,25 @@ class RoomSolveRepositoryTest {
 
         assertEquals(1_234L, dao.recentSinceEpochMillis)
         assertEquals(1_234L, dao.statsSinceEpochMillis)
+    }
+
+    @Test
+    fun `history computes current averages from the newest solves`() = runTest {
+        val solves = (1L..12L).map { index ->
+            SolveEntity(
+                id = index,
+                durationMillis = index * 1_000L,
+                scramble = "R U",
+                completedAtEpochMillis = index
+            )
+        }
+
+        val history = RoomSolveRepository(FakeSolveDao(solves))
+            .observeHistory()
+            .first()
+
+        assertEquals(SolveAverage.Time(10_000L), history.stats.averageOf5)
+        assertEquals(SolveAverage.Time(6_500L), history.stats.averageOf12)
     }
 
     private class FakeSolveDao(
