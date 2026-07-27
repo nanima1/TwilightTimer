@@ -7,6 +7,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import cs.min2phase.Tools
 import io.github.nanima1.twilight.solver.Min2PhaseSolver
 import io.github.nanima1.twilight.solver.SolutionMethod
+import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -18,6 +19,10 @@ class Min2PhaseSolverBenchmark {
     val benchmarkRule = BenchmarkRule()
 
     private val solver = Min2PhaseSolver()
+    private val cancellationRequested = AtomicBoolean(false)
+    private val cancellationCheck = {
+        check(!cancellationRequested.get())
+    }
 
     @Before
     fun initializeSolver() {
@@ -38,7 +43,7 @@ class Min2PhaseSolverBenchmark {
 
     private fun solveRepeatedly(scramble: String) {
         benchmarkRule.measureRepeated {
-            val solution = solver.solve(scramble)
+            val solution = solver.solve(scramble, cancellationCheck)
             runWithTimingDisabled {
                 check(solution.method == SolutionMethod.TWO_PHASE)
                 check(Tools.fromScramble("$scramble ${solution.algorithm}") == SOLVED)

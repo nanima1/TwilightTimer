@@ -12,6 +12,8 @@ import io.github.nanima1.twilight.solver.Min2PhaseSolver
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -116,7 +118,10 @@ class SolutionViewModel(
                     immediateSolver = InverseScrambleSolver(),
                     optimizer = SolutionOptimizer { scramble ->
                         withContext(Dispatchers.Default) {
-                            optimizedSolver.solve(scramble)
+                            val optimizationContext = currentCoroutineContext()
+                            optimizedSolver.solve(scramble) {
+                                optimizationContext.ensureActive()
+                            }
                         }
                     }
                 )

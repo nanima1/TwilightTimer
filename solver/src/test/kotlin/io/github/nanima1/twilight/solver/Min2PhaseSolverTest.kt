@@ -40,6 +40,22 @@ class Min2PhaseSolverTest {
     }
 
     @Test
+    fun `active search observes cooperative cancellation`() {
+        var cancellationChecks = 0
+
+        assertThrows(TestCancellation::class.java) {
+            solver.solve(SLOW_TAIL_SCRAMBLE) {
+                cancellationChecks++
+                if (cancellationChecks >= 2) {
+                    throw TestCancellation()
+                }
+            }
+        }
+
+        assertTrue(cancellationChecks >= 2)
+    }
+
+    @Test
     fun `unsupported maximum depth is rejected`() {
         assertThrows(IllegalArgumentException::class.java) {
             Min2PhaseSolver(maxDepth = 31)
@@ -73,8 +89,12 @@ class Min2PhaseSolverTest {
             .digest(this)
             .joinToString(separator = "") { byte -> "%02x".format(byte) }
 
+    private class TestCancellation : RuntimeException()
+
     private companion object {
         const val SCRAMBLE = "R U2 F' L D2 B U' R2 F D' L2 U B' R D F2 L' U2 B R'"
+        const val SLOW_TAIL_SCRAMBLE =
+            "B' L2 D R' U2 F2 R B U F' R' B L2 D B2 L' D2 R2 F D'"
         const val SOLVED = "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB"
         const val TABLE_RESOURCE = "/cs/min2phase/tables.bin"
         const val TABLE_SHA_256 =

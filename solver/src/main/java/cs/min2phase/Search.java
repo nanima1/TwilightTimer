@@ -27,6 +27,8 @@ public class Search {
 
     public static final boolean USE_TWIST_FLIP_PRUN = true;
 
+    private static final int CANCELLATION_CHECK_INTERVAL = 128;
+
     //Options for research purpose.
     static final int MAX_PRE_MOVES = 20;
     static final boolean TRY_INVERSE = true;
@@ -70,6 +72,9 @@ public class Search {
     int maxPreMoves = 0;
 
     protected boolean isRec = false;
+
+    private Runnable cancellationCheck;
+    private int nodesUntilCancellationCheck;
 
     /**
      *     Verbose_Mask determines if a " . " separates the phase1 and phase2 parts of the solver string like in F' R B R L2 F .
@@ -173,6 +178,30 @@ public class Search {
      *      Error 8: Probe limit exceeded, no solution within given probMax
      */
     public synchronized String solution(String facelets, int maxDepth, long probeMax, long probeMin, int verbose) {
+        return solutionInternal(facelets, maxDepth, probeMax, probeMin, verbose, null);
+    }
+
+    public synchronized String solution(
+            String facelets,
+            int maxDepth,
+            long probeMax,
+            long probeMin,
+            int verbose,
+            Runnable cancellationCheck) {
+        return solutionInternal(facelets, maxDepth, probeMax, probeMin, verbose, cancellationCheck);
+    }
+
+    private String solutionInternal(
+            String facelets,
+            int maxDepth,
+            long probeMax,
+            long probeMin,
+            int verbose,
+            Runnable cancellationCheck) {
+        this.cancellationCheck = cancellationCheck;
+        this.nodesUntilCancellationCheck = CANCELLATION_CHECK_INTERVAL;
+        checkCancellation();
+
         int check = verify(facelets);
         if (check != 0) {
             return "Error " + Math.abs(check);
@@ -189,6 +218,19 @@ public class Search {
         initSearch();
 
         return (verbose & OPTIMAL_SOLUTION) == 0 ? search() : searchopt();
+    }
+
+    private void checkCancellation() {
+        if (cancellationCheck != null) {
+            cancellationCheck.run();
+        }
+    }
+
+    private void checkCancellationPeriodically() {
+        if (cancellationCheck != null && --nodesUntilCancellationCheck == 0) {
+            nodesUntilCancellationCheck = CANCELLATION_CHECK_INTERVAL;
+            cancellationCheck.run();
+        }
     }
 
     protected void initSearch() {
@@ -269,6 +311,7 @@ public class Search {
     }
 
     protected int phase1PreMoves(int maxl, int lm, CubieCube cc, int ssym) {
+        checkCancellationPeriodically();
         preMoveLen = maxPreMoves - maxl;
         if (isRec ? depth1 == length1 - preMoveLen
                 : (preMoveLen == 0 || (0x36FB7 >> lm & 1) == 0)) {
@@ -461,6 +504,7 @@ public class Search {
      *      2: Try Next Axis
      */
     protected int phase1(CoordCube node, int ssym, int maxl, int lm) {
+        checkCancellationPeriodically();
         if (node.prun == 0 && maxl < 5) {
             if (allowShorter || maxl == 0) {
                 depth1 -= maxl;
@@ -548,6 +592,7 @@ public class Search {
      *      2: Try Next Axis
      */
     protected int phase1opt(CoordCube ud, CoordCube rl, CoordCube fb, long ssym, int maxl, int lm) {
+        checkCancellationPeriodically();
         if (ud.prun == 0 && rl.prun == 0 && fb.prun == 0 && maxl < 5) {
             maxDep2 = maxl;
             depth1 = length1 - maxl;
@@ -619,6 +664,7 @@ public class Search {
     //-1: no solution found
     // X: solution with X moves shorter than expectation. Hence, the length of the solution is  depth - X
     protected int phase2(int edge, int esym, int corn, int csym, int mid, int maxl, int depth, int lm) {
+        checkCancellationPeriodically();
         if (edge == 0 && corn == 0 && mid == 0) {
             return maxl;
         }

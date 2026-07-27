@@ -21,16 +21,30 @@ class Min2PhaseSolver(
     }
 
     override fun solve(scramble: String): CubeSolution {
+        return solveInternal(scramble, cancellationCheck = null)
+    }
+
+    fun solve(
+        scramble: String,
+        cancellationCheck: () -> Unit
+    ): CubeSolution {
+        return solveInternal(scramble, Runnable(cancellationCheck))
+    }
+
+    private fun solveInternal(
+        scramble: String,
+        cancellationCheck: Runnable?
+    ): CubeSolution {
         val moves = ScrambleNotation.parse(scramble)
         initialize()
 
-        val result = Search().solution(
-            Tools.fromScramble(moves.joinToString(separator = " ")),
-            maxDepth,
-            probeMax,
-            0L,
-            0
-        ).trim()
+        val facelets = Tools.fromScramble(moves.joinToString(separator = " "))
+        val search = Search()
+        val result = if (cancellationCheck == null) {
+            search.solution(facelets, maxDepth, probeMax, 0L, 0)
+        } else {
+            search.solution(facelets, maxDepth, probeMax, 0L, 0, cancellationCheck)
+        }.trim()
 
         if (result.startsWith(ERROR_PREFIX)) {
             throw SolverComputationException("Two-phase solver failed: $result")
