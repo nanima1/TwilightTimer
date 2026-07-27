@@ -29,6 +29,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,10 +45,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.nanima1.twilight.domain.solve.SolveHistory
+import io.github.nanima1.twilight.domain.solve.SolveHistoryFilter
 import io.github.nanima1.twilight.domain.solve.SolvePenalty
 import io.github.nanima1.twilight.domain.solve.SolveRecord
 import java.time.Instant
@@ -56,9 +60,11 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun HistorySheet(
     history: SolveHistory,
+    selectedFilter: SolveHistoryFilter,
     onSolveDeleted: (Long) -> Unit,
     onSolvePenaltyChanged: (Long, SolvePenalty) -> Unit,
     onSolveNoteChanged: (Long, String?) -> Unit,
+    onFilterSelected: (SolveHistoryFilter) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -92,6 +98,23 @@ fun HistorySheet(
             }
 
             Spacer(Modifier.height(12.dp))
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                SolveHistoryFilter.entries.forEachIndexed { index, filter ->
+                    SegmentedButton(
+                        selected = filter == selectedFilter,
+                        onClick = { onFilterSelected(filter) },
+                        shape = SegmentedButtonDefaults.itemShape(
+                            index = index,
+                            count = SolveHistoryFilter.entries.size
+                        )
+                    ) {
+                        Text(filter.shortLabel())
+                    }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -114,7 +137,7 @@ fun HistorySheet(
 
             if (history.recentSolves.isEmpty()) {
                 Text(
-                    text = "No solves yet",
+                    text = "No solves in this range",
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 36.dp),
@@ -350,4 +373,11 @@ private fun SolvePenalty.menuLabel(): String = when (this) {
     SolvePenalty.NONE -> "No penalty"
     SolvePenalty.PLUS_TWO -> "+2 seconds"
     SolvePenalty.DNF -> "DNF"
+}
+
+private fun SolveHistoryFilter.shortLabel(): String = when (this) {
+    SolveHistoryFilter.ALL -> "All"
+    SolveHistoryFilter.TODAY -> "Today"
+    SolveHistoryFilter.LAST_7_DAYS -> "7D"
+    SolveHistoryFilter.LAST_30_DAYS -> "30D"
 }

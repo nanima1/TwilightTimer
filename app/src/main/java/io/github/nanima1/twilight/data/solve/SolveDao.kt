@@ -10,11 +10,12 @@ interface SolveDao {
     @Query(
         """
         SELECT * FROM solves
+        WHERE completed_at_epoch_millis >= :sinceEpochMillis
         ORDER BY completed_at_epoch_millis DESC, id DESC
         LIMIT :limit
         """
     )
-    fun observeRecent(limit: Int): Flow<List<SolveEntity>>
+    fun observeRecent(sinceEpochMillis: Long, limit: Int): Flow<List<SolveEntity>>
 
     @Query(
         """
@@ -28,9 +29,10 @@ interface SolveDao {
                 END
             ) AS bestSolveMillis
         FROM solves
+        WHERE completed_at_epoch_millis >= :sinceEpochMillis
         """
     )
-    fun observeStats(): Flow<SolveStatsEntity>
+    fun observeStats(sinceEpochMillis: Long): Flow<SolveStatsEntity>
 
     @Insert
     suspend fun insert(solve: SolveEntity)

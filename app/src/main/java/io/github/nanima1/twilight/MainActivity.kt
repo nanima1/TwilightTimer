@@ -84,6 +84,7 @@ class MainActivity : ComponentActivity() {
                     onSolveDeleted = timerViewModel::deleteSolve,
                     onSolvePenaltyChanged = timerViewModel::setSolvePenalty,
                     onSolveNoteChanged = timerViewModel::setSolveNote,
+                    onHistoryFilterSelected = timerViewModel::setHistoryFilter,
                     onThemeSelected = appearanceViewModel::setThemePreset,
                     onWallpaperRequested = { wallpaperPicker.launch(arrayOf("image/*")) },
                     onWallpaperRemoved = appearanceViewModel::removeWallpaper,

@@ -1,5 +1,6 @@
 package io.github.nanima1.twilight.data.solve
 
+import io.github.nanima1.twilight.domain.solve.SolveHistoryQuery
 import io.github.nanima1.twilight.domain.solve.SolveRecord
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,7 +25,7 @@ class RoomSolveRepositoryTest {
             )
         )
 
-        val history = RoomSolveRepository(dao).history.first()
+        val history = RoomSolveRepository(dao).observeHistory().first()
 
         assertEquals("Smooth execution", history.recentSolves.single().note)
     }
@@ -55,6 +56,18 @@ class RoomSolveRepositoryTest {
         )
     }
 
+    @Test
+    fun `history query forwards one boundary to solves and statistics`() = runTest {
+        val dao = FakeSolveDao()
+
+        RoomSolveRepository(dao)
+            .observeHistory(SolveHistoryQuery(sinceEpochMillis = 1_234L))
+            .first()
+
+        assertEquals(1_234L, dao.recentSinceEpochMillis)
+        assertEquals(1_234L, dao.statsSinceEpochMillis)
+    }
+
     private class FakeSolveDao(
         solves: List<SolveEntity> = emptyList()
     ) : SolveDao {
@@ -66,10 +79,21 @@ class RoomSolveRepositoryTest {
             )
         )
         var updatedNote: Pair<Long, String?>? = null
+        var recentSinceEpochMillis: Long? = null
+        var statsSinceEpochMillis: Long? = null
 
-        override fun observeRecent(limit: Int): Flow<List<SolveEntity>> = recent
+        override fun observeRecent(
+            sinceEpochMillis: Long,
+            limit: Int
+        ): Flow<List<SolveEntity>> {
+            recentSinceEpochMillis = sinceEpochMillis
+            return recent
+        }
 
-        override fun observeStats(): Flow<SolveStatsEntity> = stats
+        override fun observeStats(sinceEpochMillis: Long): Flow<SolveStatsEntity> {
+            statsSinceEpochMillis = sinceEpochMillis
+            return stats
+        }
 
         override suspend fun insert(solve: SolveEntity) {
             recent.value = listOf(solve) + recent.value

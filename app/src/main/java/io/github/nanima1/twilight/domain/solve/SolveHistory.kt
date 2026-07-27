@@ -1,5 +1,8 @@
 package io.github.nanima1.twilight.domain.solve
 
+import java.time.Instant
+import java.time.ZoneId
+
 enum class SolvePenalty(val id: String) {
     NONE("none"),
     PLUS_TWO("plus_two"),
@@ -19,6 +22,40 @@ enum class SolvePenalty(val id: String) {
         private const val PLUS_TWO_MILLIS = 2_000L
 
         fun fromId(id: String?): SolvePenalty = entries.firstOrNull { it.id == id } ?: NONE
+    }
+}
+
+data class SolveHistoryQuery(
+    val sinceEpochMillis: Long = Long.MIN_VALUE
+)
+
+enum class SolveHistoryFilter {
+    ALL,
+    TODAY,
+    LAST_7_DAYS,
+    LAST_30_DAYS;
+
+    fun toQuery(
+        nowEpochMillis: Long,
+        zoneId: ZoneId = ZoneId.systemDefault()
+    ): SolveHistoryQuery {
+        if (this == ALL) return SolveHistoryQuery()
+
+        val daysBeforeToday = when (this) {
+            ALL -> error("All history does not have a calendar boundary")
+            TODAY -> 0L
+            LAST_7_DAYS -> 6L
+            LAST_30_DAYS -> 29L
+        }
+        val sinceEpochMillis = Instant
+            .ofEpochMilli(nowEpochMillis)
+            .atZone(zoneId)
+            .toLocalDate()
+            .minusDays(daysBeforeToday)
+            .atStartOfDay(zoneId)
+            .toInstant()
+            .toEpochMilli()
+        return SolveHistoryQuery(sinceEpochMillis)
     }
 }
 

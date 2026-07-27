@@ -3,6 +3,8 @@ package io.github.nanima1.twilight.presentation
 import io.github.nanima1.twilight.data.timer.TimerSettingsRepository
 import io.github.nanima1.twilight.domain.scramble.ScrambleGenerator
 import io.github.nanima1.twilight.domain.solve.SolveHistory
+import io.github.nanima1.twilight.domain.solve.SolveHistoryFilter
+import io.github.nanima1.twilight.domain.solve.SolveHistoryQuery
 import io.github.nanima1.twilight.domain.solve.SolvePenalty
 import io.github.nanima1.twilight.domain.solve.SolveRecord
 import io.github.nanima1.twilight.domain.solve.SolveRepository
@@ -16,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
@@ -156,6 +159,28 @@ class TimerViewModelTest {
         viewModel.setSolveNote(id = 1L, note = "  ")
         advanceUntilIdle()
         assertNull(viewModel.state.value.history.recentSolves.single().note)
+    }
+
+    @Test
+    fun `history filter updates solves and statistics together`() = runTest {
+        val now = 1_722_060_000_000L
+        val repository = FakeSolveRepository()
+        repository.addSolve(8_000L, "previous", now - 86_400_000L)
+        repository.addSolve(6_000L, "today", now - 3_600_000L)
+        val viewModel = TimerViewModel(
+            solveRepository = repository,
+            timerSettingsRepository = FakeTimerSettingsRepository(),
+            scrambleGenerator = ScrambleGenerator(Random(30)),
+            currentTimeMillis = { now }
+        )
+
+        viewModel.setHistoryFilter(SolveHistoryFilter.TODAY)
+        advanceUntilIdle()
+
+        assertEquals(SolveHistoryFilter.TODAY, viewModel.state.value.historyFilter)
+        assertEquals("today", viewModel.state.value.history.recentSolves.single().scramble)
+        assertEquals(1L, viewModel.state.value.history.stats.solveCount)
+        assertEquals(6_000L, viewModel.state.value.history.stats.bestSolveMillis)
     }
 
     @Test
@@ -369,10 +394,16 @@ class TimerViewModelTest {
     }
 
     private class FakeSolveRepository : SolveRepository {
-        private val mutableHistory = MutableStateFlow(SolveHistory())
-        override val history: Flow<SolveHistory> = mutableHistory
-        val current: SolveHistory get() = mutableHistory.value
+        private val solves = MutableStateFlow(emptyList<SolveRecord>())
+        val current: SolveHistory get() = solves.value.toHistory()
         private var nextId = 1L
+
+        override fun observeHistory(query: SolveHistoryQuery): Flow<SolveHistory> =
+            solves.map { records ->
+                records
+                    .filter { it.completedAtEpochMillis >= query.sinceEpochMillis }
+                    .toHistory()
+            }
 
         override suspend fun addSolve(
             durationMillis: Long,
@@ -387,16 +418,16 @@ class TimerViewModelTest {
                 completedAtEpochMillis = completedAtEpochMillis,
                 penalty = penalty
             )
-            publish(listOf(solve) + current.recentSolves)
+            publish(listOf(solve) + solves.value)
         }
 
         override suspend fun deleteSolve(id: Long) {
-            publish(current.recentSolves.filterNot { it.id == id })
+            publish(solves.value.filterNot { it.id == id })
         }
 
         override suspend fun setPenalty(id: Long, penalty: SolvePenalty) {
             publish(
-                current.recentSolves.map { solve ->
+                solves.value.map { solve ->
                     if (solve.id == id) solve.copy(penalty = penalty) else solve
                 }
             )
@@ -404,7 +435,7 @@ class TimerViewModelTest {
 
         override suspend fun setNote(id: Long, note: String?) {
             publish(
-                current.recentSolves.map { solve ->
+                solves.value.map { solve ->
                     if (solve.id == id) {
                         solve.copy(note = SolveRecord.normalizeNote(note))
                     } else {
@@ -415,15 +446,18 @@ class TimerViewModelTest {
         }
 
         private fun publish(solves: List<SolveRecord>) {
-            mutableHistory.value = SolveHistory(
-                recentSolves = solves,
+            this.solves.value = solves
+        }
+
+        private fun List<SolveRecord>.toHistory(): SolveHistory =
+            SolveHistory(
+                recentSolves = this,
                 stats = SolveStats(
-                    solveCount = solves.size.toLong(),
-                    lastSolveMillis = solves.firstOrNull()?.durationMillis,
-                    lastSolvePenalty = solves.firstOrNull()?.penalty,
-                    bestSolveMillis = solves.mapNotNull(SolveRecord::adjustedDurationMillis).minOrNull()
+                    solveCount = size.toLong(),
+                    lastSolveMillis = firstOrNull()?.durationMillis,
+                    lastSolvePenalty = firstOrNull()?.penalty,
+                    bestSolveMillis = mapNotNull(SolveRecord::adjustedDurationMillis).minOrNull()
                 )
             )
-        }
     }
 }

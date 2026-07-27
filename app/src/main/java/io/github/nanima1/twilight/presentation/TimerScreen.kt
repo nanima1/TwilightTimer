@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import io.github.nanima1.twilight.domain.appearance.ThemePreset
 import io.github.nanima1.twilight.domain.appearance.WallpaperPosition
+import io.github.nanima1.twilight.domain.solve.SolveHistoryFilter
 import io.github.nanima1.twilight.domain.solve.SolvePenalty
 import io.github.nanima1.twilight.domain.timer.InspectionRules
 import io.github.nanima1.twilight.domain.timer.TimerInputState
@@ -90,6 +91,7 @@ fun TimerScreen(
     onSolveDeleted: (Long) -> Unit,
     onSolvePenaltyChanged: (Long, SolvePenalty) -> Unit,
     onSolveNoteChanged: (Long, String?) -> Unit,
+    onHistoryFilterSelected: (SolveHistoryFilter) -> Unit,
     onThemeSelected: (ThemePreset) -> Unit,
     onWallpaperRequested: () -> Unit,
     onWallpaperRemoved: () -> Unit,
@@ -246,9 +248,11 @@ fun TimerScreen(
         if (showHistory) {
             HistorySheet(
                 history = state.history,
+                selectedFilter = state.historyFilter,
                 onSolveDeleted = onSolveDeleted,
                 onSolvePenaltyChanged = onSolvePenaltyChanged,
                 onSolveNoteChanged = onSolveNoteChanged,
+                onFilterSelected = onHistoryFilterSelected,
                 onDismiss = { showHistory = false }
             )
         }

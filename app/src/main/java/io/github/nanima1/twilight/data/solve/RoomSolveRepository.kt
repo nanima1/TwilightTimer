@@ -1,6 +1,7 @@
 package io.github.nanima1.twilight.data.solve
 
 import io.github.nanima1.twilight.domain.solve.SolveHistory
+import io.github.nanima1.twilight.domain.solve.SolveHistoryQuery
 import io.github.nanima1.twilight.domain.solve.SolvePenalty
 import io.github.nanima1.twilight.domain.solve.SolveRecord
 import io.github.nanima1.twilight.domain.solve.SolveRepository
@@ -10,11 +11,11 @@ import kotlinx.coroutines.flow.combine
 
 class RoomSolveRepository(
     private val solveDao: SolveDao,
-    historyLimit: Int = DEFAULT_HISTORY_LIMIT
+    private val historyLimit: Int = DEFAULT_HISTORY_LIMIT
 ) : SolveRepository {
-    override val history: Flow<SolveHistory> = combine(
-        solveDao.observeRecent(historyLimit),
-        solveDao.observeStats()
+    override fun observeHistory(query: SolveHistoryQuery): Flow<SolveHistory> = combine(
+        solveDao.observeRecent(query.sinceEpochMillis, historyLimit),
+        solveDao.observeStats(query.sinceEpochMillis)
     ) { solves, stats ->
         val recentSolves = solves.map { it.toDomain() }
         SolveHistory(

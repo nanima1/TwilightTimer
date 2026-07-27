@@ -13,6 +13,7 @@ import io.github.nanima1.twilight.data.timer.DataStoreTimerSettingsRepository
 import io.github.nanima1.twilight.data.timer.TimerSettingsRepository
 import io.github.nanima1.twilight.domain.scramble.ScrambleGenerator
 import io.github.nanima1.twilight.domain.solve.SolveHistory
+import io.github.nanima1.twilight.domain.solve.SolveHistoryFilter
 import io.github.nanima1.twilight.domain.solve.SolvePenalty
 import io.github.nanima1.twilight.domain.solve.SolveRepository
 import io.github.nanima1.twilight.domain.timer.TimerPhase
@@ -21,6 +22,7 @@ import io.github.nanima1.twilight.domain.timer.TimerInputState
 import io.github.nanima1.twilight.domain.timer.TimerSession
 import io.github.nanima1.twilight.domain.timer.TimerSessionReducer
 import io.github.nanima1.twilight.domain.timer.TimerSettings
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +31,8 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -39,10 +43,12 @@ data class TimerUiState(
     val session: TimerSession = TimerSession(),
     val scramble: String = "",
     val history: SolveHistory = SolveHistory(),
+    val historyFilter: SolveHistoryFilter = SolveHistoryFilter.ALL,
     val timerSettings: TimerSettings = TimerSettings(),
     val inputState: TimerInputState = TimerInputState.IDLE
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class TimerViewModel(
     private val solveRepository: SolveRepository,
     private val timerSettingsRepository: TimerSettingsRepository,
@@ -53,6 +59,7 @@ class TimerViewModel(
     private val session = MutableStateFlow(TimerSession())
     private val scramble = MutableStateFlow(scrambleGenerator.generate())
     private val inputState = MutableStateFlow(TimerInputState.IDLE)
+    private val historyFilter = MutableStateFlow(SolveHistoryFilter.ALL)
     private val mutableInspectionCues = MutableSharedFlow<InspectionCue>(extraBufferCapacity = 2)
     val inspectionCues: SharedFlow<InspectionCue> = mutableInspectionCues.asSharedFlow()
     private val timerSettings = timerSettingsRepository.settings.stateIn(
@@ -60,18 +67,24 @@ class TimerViewModel(
         started = SharingStarted.Eagerly,
         initialValue = TimerSettings()
     )
+    private val filteredHistory = historyFilter.flatMapLatest { filter ->
+        solveRepository.observeHistory(filter.toQuery(currentTimeMillis())).map { history ->
+            filter to history
+        }
+    }
 
     val state: StateFlow<TimerUiState> = combine(
         session,
         scramble,
-        solveRepository.history,
+        filteredHistory,
         timerSettings,
         inputState
-    ) { currentSession, currentScramble, history, currentTimerSettings, currentInputState ->
+    ) { currentSession, currentScramble, historyState, currentTimerSettings, currentInputState ->
         TimerUiState(
             session = currentSession,
             scramble = currentScramble,
-            history = history,
+            history = historyState.second,
+            historyFilter = historyState.first,
             timerSettings = currentTimerSettings,
             inputState = currentInputState
         )
@@ -145,6 +158,10 @@ class TimerViewModel(
         viewModelScope.launch {
             solveRepository.setNote(id, note)
         }
+    }
+
+    fun setHistoryFilter(filter: SolveHistoryFilter) {
+        historyFilter.value = filter
     }
 
     fun setInspectionEnabled(enabled: Boolean) {

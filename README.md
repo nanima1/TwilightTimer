@@ -11,7 +11,7 @@ Twilight Timer is an independently developed Android speedcubing timer. The firs
 - Dedicated 3x3 solver module with instant inverse and optimized two-phase strategies
 - Three persisted theme packs with live switching
 - Private custom-wallpaper import with readability and crop-position controls
-- Room-backed solve history with notes, +2/DNF penalties, and live statistics
+- Room-backed solve history with calendar-range filters, notes, +2/DNF penalties, and live statistics
 - Persisted WCA-style inspection controls with +2/DNF assignment and 8/12-second haptics
 - Hold-to-arm and release-to-start input with immediate touch-to-stop timing
 - Independent package: `io.github.nanima1.twilight`
@@ -42,10 +42,9 @@ The inverse solver prioritizes predictable latency and correctness. The two-phas
 
 ## Roadmap
 
-1. Add session filters.
-2. Add original curated art packs when final artwork is available.
-3. Add deeper statistics and accessibility QA.
-4. Continue profiling solver initialization and low-end device performance.
+1. Add original curated art packs when final artwork is available.
+2. Add deeper statistics and accessibility QA.
+3. Continue profiling solver initialization and low-end device performance.
 
 ## License
 
