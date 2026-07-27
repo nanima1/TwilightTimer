@@ -28,17 +28,29 @@ class Min2PhaseSolverBenchmark {
 
     @Test
     fun solveWarmGeneratedLengthScramble() {
+        solveRepeatedly(REPRESENTATIVE_SCRAMBLE)
+    }
+
+    @Test
+    fun solveWarmHardCorpusScramble() {
+        solveRepeatedly(HARD_CORPUS_SCRAMBLE)
+    }
+
+    private fun solveRepeatedly(scramble: String) {
         benchmarkRule.measureRepeated {
-            val solution = solver.solve(SCRAMBLE)
+            val solution = solver.solve(scramble)
             runWithTimingDisabled {
                 check(solution.method == SolutionMethod.TWO_PHASE)
-                check(Tools.fromScramble("$SCRAMBLE ${solution.algorithm}") == SOLVED)
+                check(Tools.fromScramble("$scramble ${solution.algorithm}") == SOLVED)
             }
         }
     }
 
     private companion object {
-        const val SCRAMBLE = "R U2 F' L D2 B U' R2 F D' L2 U B' R D F2 L' U2 B R'"
+        const val REPRESENTATIVE_SCRAMBLE =
+            "R U2 F' L D2 B U' R2 F D' L2 U B' R D F2 L' U2 B R'"
+        const val HARD_CORPUS_SCRAMBLE =
+            "B' L2 D R' U2 F2 R B U F' R' B L2 D B2 L' D2 R2 F D'"
         const val SOLVED = "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB"
         const val LOG_TAG = "TwilightSolverBenchmark"
     }
