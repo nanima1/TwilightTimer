@@ -1,10 +1,12 @@
 # 3x3 solver engine evaluation
 
-Date: 2026-07-26
+Date: 2026-07-27
 
 ## Decision
 
 Use a pinned, unmodified source snapshot of `cs0x7f/min2phase` behind the existing `CubeSolver` interface. Keep the inverse-scramble implementation as the immediate fallback for generated scrambles, and run two-phase optimization away from the Android main thread.
+
+Package the deterministic full-table payload produced by `Tools.saveTo()` and decode it through a project-owned bulk loader. If the resource cannot be read, fall back to runtime table generation so solving remains available.
 
 The selected revision is `4d183b9eff8119cac72bc50ef35a7d8990740e06`. The upstream README offers an MIT license option and documents the public `Search` and `Tools` interfaces. The source snapshot is kept local so builds do not depend on JitPack or mutable GitHub branches.
 
@@ -14,7 +16,10 @@ The selected revision is `4d183b9eff8119cac72bc50ef35a7d8990740e06`. The upstrea
 - The upstream benchmark reports about 1 MB memory, 195 ms full initialization, and 0.805 ms for a 21-move target on its reference desktop environment: https://github.com/cs0x7f/min2phase/blob/4d183b9eff8119cac72bc50ef35a7d8990740e06/Benchmark.md
 - The upstream README includes both GPLv3 and MIT license options. This project selects MIT and packages its text with the solver module: https://github.com/cs0x7f/min2phase/blob/4d183b9eff8119cac72bc50ef35a7d8990740e06/README.md
 - A local JDK probe on the selected revision measured 144.9 ms initialization, 5.73 ms first solve, and 1.45 ms average across 100 warm solves. The returned 21-move algorithm replayed to the solved facelet state.
-- The API 30 x86_64 release benchmark measured 127.55 ms full initialization and 1.93 ms median warm solve time across 50 runs. The emulator had unlocked clocks, so these values are comparison baselines rather than physical-device acceptance numbers.
+- The API 30 x86_64 release baseline measured 130.53 ms full initialization and 1.95 ms median warm solve time.
+- With the compressed precomputed resource, three fresh-process runs measured 17.04 ms, 17.64 ms, and 19.54 ms full-table initialization. First solves measured 2.34 ms, 2.87 ms, and 2.81 ms. The 50-run warm-solve median remained 1.91 ms.
+- The table payload is 997,738 bytes before APK compression and 575,195 bytes after compression. Its SHA-256 digest is pinned in the solver regression test.
+- The emulator had unlocked clocks, so these values are comparison baselines rather than physical-device acceptance numbers.
 
 ## Rejected candidates
 
@@ -35,8 +40,9 @@ Sources:
 
 ## Integration rules
 
-1. Prewarm full tables on a background dispatcher before requesting optimized solutions.
+1. Load the packaged full tables on a background dispatcher before requesting optimized solutions.
 2. Create a new `Search` instance per solve; do not share mutable search state across concurrent calls.
 3. Validate notation before `Tools.fromScramble`, because its parser ignores unsupported characters.
 4. Replay every deterministic test solution back to the solved facelet state.
-5. Treat emulator measurements as trend evidence only and repeat final performance acceptance on physical Android hardware.
+5. Verify that the packaged table resource matches the current solver layout and pinned digest.
+6. Treat emulator measurements as trend evidence only and repeat final performance acceptance on physical Android hardware.
