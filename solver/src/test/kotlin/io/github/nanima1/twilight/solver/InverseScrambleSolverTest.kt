@@ -39,4 +39,22 @@ class InverseScrambleSolverTest {
 
         assertEquals("Unsupported move: Rw", error.message)
     }
+
+    @Test
+    fun `moves without separating whitespace are rejected`() {
+        val error = assertThrows(InvalidScrambleException::class.java) {
+            solver.solve("R UF")
+        }
+
+        assertEquals("Unsupported move: UF", error.message)
+    }
+
+    @Test
+    fun `moves with compound suffixes are rejected`() {
+        val error = assertThrows(InvalidScrambleException::class.java) {
+            solver.solve("R U2' F")
+        }
+
+        assertEquals("Unsupported move: U2'", error.message)
+    }
 }

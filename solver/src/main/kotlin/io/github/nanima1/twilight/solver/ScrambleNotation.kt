@@ -1,19 +1,32 @@
 package io.github.nanima1.twilight.solver
 
 internal object ScrambleNotation {
-    private val move = Regex("[RLUDFB](?:2|')?")
-    private val whitespace = Regex("\\s+")
-
     fun parse(scramble: String): List<String> {
-        val normalized = scramble.trim()
-        if (normalized.isEmpty()) {
-            throw InvalidScrambleException("Scramble must contain at least one move.")
+        val moves = ArrayList<String>()
+        var index = 0
+        while (index < scramble.length) {
+            while (index < scramble.length && scramble[index].isWhitespace()) index++
+            if (index == scramble.length) break
+
+            val moveStart = index
+            while (index < scramble.length && !scramble[index].isWhitespace()) index++
+            val move = scramble.substring(moveStart, index)
+            if (!move.isSupportedMove()) {
+                throw InvalidScrambleException("Unsupported move: $move")
+            }
+            moves += move
         }
 
-        val moves = normalized.split(whitespace)
-        moves.firstOrNull { !move.matches(it) }?.let { invalidMove ->
-            throw InvalidScrambleException("Unsupported move: $invalidMove")
+        if (moves.isEmpty()) {
+            throw InvalidScrambleException("Scramble must contain at least one move.")
         }
         return moves
     }
+
+    private fun String.isSupportedMove(): Boolean =
+        length in 1..2 &&
+            first() in SUPPORTED_FACES &&
+            (length == 1 || this[1] == '2' || this[1] == '\'')
+
+    private const val SUPPORTED_FACES = "RLUDFB"
 }
