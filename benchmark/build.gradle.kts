@@ -17,6 +17,10 @@ android {
 
     testBuildType = "release"
 
+    androidResources {
+        noCompress += "bin"
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

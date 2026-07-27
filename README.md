@@ -38,13 +38,13 @@ Run the release microbenchmark on a connected Android device or emulator:
 ./gradlew.bat :benchmark:connectedReleaseAndroidTest
 ```
 
-The inverse solver prioritizes predictable latency and correctness. The two-phase solver can produce shorter algorithms after its lookup tables are initialized; it must run away from the Android main thread.
+The inverse solver prioritizes predictable latency and correctness. The two-phase solver can produce shorter algorithms after its lookup tables are initialized; it must run away from the Android main thread. Production and benchmark APKs store the lookup table without compression to reduce first-solution latency.
 
 ## Roadmap
 
 1. Add original curated art packs when final artwork is available.
 2. Expand accessibility QA.
-3. Continue profiling solver initialization and low-end device performance.
+3. Continue profiling worst-case solver searches and low-end device performance.
 
 ## License
 
