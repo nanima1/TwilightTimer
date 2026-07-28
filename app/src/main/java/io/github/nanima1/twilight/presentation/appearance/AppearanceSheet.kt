@@ -6,8 +6,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -33,6 +36,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -44,9 +48,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.nanima1.twilight.domain.appearance.AppearanceSettings
@@ -185,6 +192,23 @@ fun AppearanceSheet(
                 )
             }
 
+            if (settings.wallpaperUri != null) {
+                Spacer(Modifier.height(20.dp))
+                Text(
+                    text = "PREVIEW",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(10.dp))
+                WallpaperPreview(
+                    settings = settings.copy(
+                        wallpaperScrim = pendingScrim,
+                        wallpaperPanelOpacity = pendingPanelOpacity
+                    )
+                )
+            }
+
             Spacer(Modifier.height(20.dp))
             Text(
                 text = "IMAGE POSITION",
@@ -277,6 +301,75 @@ fun AppearanceSheet(
                     AppearanceSettings.MAX_WALLPAPER_PANEL_OPACITY,
                 enabled = settings.wallpaperUri != null,
                 modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Composable
+private fun WallpaperPreview(settings: AppearanceSettings) {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .width(168.dp)
+                .aspectRatio(9f / 16f)
+                .clip(RoundedCornerShape(6.dp))
+                .background(MaterialTheme.colorScheme.background)
+                .clearAndSetSemantics {
+                    contentDescription = "Wallpaper preview"
+                }
+        ) {
+            WallpaperImage(
+                settings = settings,
+                modifier = Modifier.fillMaxSize()
+            )
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .padding(10.dp),
+                color = MaterialTheme.colorScheme.surface.copy(
+                    alpha = settings.wallpaperPanelOpacity
+                ),
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                shape = RoundedCornerShape(4.dp),
+                tonalElevation = 0.dp
+            ) {
+                Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                    Text(
+                        text = "3 x 3 SCRAMBLE",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "R U R' U' F2 D L2",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+            Text(
+                text = "12.34",
+                modifier = Modifier.align(Alignment.Center),
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(10.dp)
+                    .height(28.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(MaterialTheme.colorScheme.primary)
             )
         }
     }

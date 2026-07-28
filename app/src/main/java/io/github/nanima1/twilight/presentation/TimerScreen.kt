@@ -43,15 +43,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
@@ -63,7 +60,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import io.github.nanima1.twilight.domain.appearance.ThemePreset
 import io.github.nanima1.twilight.domain.appearance.WallpaperPosition
 import io.github.nanima1.twilight.domain.solve.SolveHistoryFilter
@@ -74,6 +70,7 @@ import io.github.nanima1.twilight.domain.timer.TimerPhase
 import io.github.nanima1.twilight.domain.timer.TimerSession
 import io.github.nanima1.twilight.presentation.appearance.AppearanceSheet
 import io.github.nanima1.twilight.presentation.appearance.AppearanceUiState
+import io.github.nanima1.twilight.presentation.appearance.WallpaperImage
 import io.github.nanima1.twilight.presentation.settings.TimerSettingsSheet
 import io.github.nanima1.twilight.presentation.solution.SolutionUiState
 import java.util.Locale
@@ -122,19 +119,10 @@ fun TimerScreen(
                 .fillMaxSize()
                 .graphicsLayer()
         ) {
-            appearance.settings.wallpaperUri?.let { wallpaperUri ->
-                AsyncImage(
-                    model = wallpaperUri,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    alignment = appearance.settings.wallpaperPosition.toAlignment(),
-                    colorFilter = ColorFilter.tint(
-                        color = Color.Black.copy(alpha = appearance.settings.wallpaperScrim),
-                        blendMode = BlendMode.SrcOver
-                    ),
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
+            WallpaperImage(
+                settings = appearance.settings,
+                modifier = Modifier.fillMaxSize()
+            )
             if (!hasWallpaper) {
                 TwilightBackdrop(Modifier.fillMaxSize())
             }
@@ -369,12 +357,6 @@ private fun SolutionPanel(
             )
         }
     }
-}
-
-private fun WallpaperPosition.toAlignment(): Alignment = when (this) {
-    WallpaperPosition.TOP -> Alignment.TopCenter
-    WallpaperPosition.CENTER -> Alignment.Center
-    WallpaperPosition.BOTTOM -> Alignment.BottomCenter
 }
 
 @Composable
