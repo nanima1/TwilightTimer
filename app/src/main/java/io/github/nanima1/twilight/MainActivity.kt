@@ -78,6 +78,7 @@ class MainActivity : ComponentActivity() {
                     onTimerPressStarted = timerViewModel::onTimerPressStarted,
                     onTimerReleased = timerViewModel::onTimerReleased,
                     onTimerPressCancelled = timerViewModel::onTimerPressCancelled,
+                    onNewScrambleRequested = timerViewModel::requestNewScramble,
                     onInspectionEnabledChanged = timerViewModel::setInspectionEnabled,
                     onInspectionHapticsEnabledChanged =
                         timerViewModel::setInspectionHapticsEnabled,

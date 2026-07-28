@@ -80,6 +80,50 @@ class TimerViewModelTest {
     }
 
     @Test
+    fun `new scramble request changes only the ready scramble`() = runTest {
+        val repository = FakeSolveRepository()
+        val viewModel = TimerViewModel(
+            solveRepository = repository,
+            timerSettingsRepository = FakeTimerSettingsRepository(),
+            scrambleGenerator = ScrambleGenerator(Random(32))
+        )
+        val previousScramble = viewModel.state.value.scramble
+
+        viewModel.requestNewScramble()
+
+        assertNotEquals(previousScramble, viewModel.state.value.scramble)
+        assertEquals(0L, repository.current.stats.solveCount)
+        assertEquals(TimerPhase.READY, viewModel.state.value.session.phase)
+    }
+
+    @Test
+    fun `new scramble request is ignored while inspection or timer is active`() = runTest {
+        val viewModel = TimerViewModel(
+            solveRepository = FakeSolveRepository(),
+            timerSettingsRepository = FakeTimerSettingsRepository(),
+            scrambleGenerator = ScrambleGenerator(Random(33)),
+            elapsedRealtimeMillis = { 100L }
+        )
+        val activeScramble = viewModel.state.value.scramble
+
+        viewModel.onTimerPressStarted()
+        viewModel.requestNewScramble()
+        assertEquals(activeScramble, viewModel.state.value.scramble)
+        viewModel.onTimerPressCancelled()
+
+        viewModel.onTimerPressed()
+        viewModel.requestNewScramble()
+        assertEquals(activeScramble, viewModel.state.value.scramble)
+
+        viewModel.onTimerPressed()
+        viewModel.requestNewScramble()
+        assertEquals(activeScramble, viewModel.state.value.scramble)
+
+        viewModel.onTimerPressed()
+        advanceUntilIdle()
+    }
+
+    @Test
     fun `inspection penalty is saved with the completed solve`() = runTest {
         val repository = FakeSolveRepository()
         var elapsedRealtime = 100L

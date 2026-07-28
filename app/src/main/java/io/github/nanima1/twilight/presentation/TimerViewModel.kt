@@ -164,6 +164,13 @@ class TimerViewModel(
         historyFilter.value = filter
     }
 
+    fun requestNewScramble() {
+        if (session.value.phase != TimerPhase.READY) return
+        if (inputState.value != TimerInputState.IDLE) return
+
+        scramble.value = scrambleGenerator.generate()
+    }
+
     fun setInspectionEnabled(enabled: Boolean) {
         viewModelScope.launch {
             timerSettingsRepository.setInspectionEnabled(enabled)

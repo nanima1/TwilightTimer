@@ -24,6 +24,7 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -86,6 +87,7 @@ fun TimerScreen(
     onTimerPressStarted: () -> Unit,
     onTimerReleased: () -> Unit,
     onTimerPressCancelled: () -> Unit,
+    onNewScrambleRequested: () -> Unit,
     onInspectionEnabledChanged: (Boolean) -> Unit,
     onInspectionHapticsEnabledChanged: (Boolean) -> Unit,
     onSolveDeleted: (Long) -> Unit,
@@ -162,7 +164,10 @@ fun TimerScreen(
                 ScramblePanel(
                     scramble = state.scramble,
                     panelOpacity = panelOpacity,
-                    compactLayout = compactLayout
+                    compactLayout = compactLayout,
+                    canRequestNewScramble = state.session.phase == TimerPhase.READY &&
+                        state.inputState == TimerInputState.IDLE,
+                    onNewScrambleRequested = onNewScrambleRequested
                 )
                 Spacer(Modifier.height(if (compactLayout) 8.dp else 10.dp))
                 SolutionPanel(
@@ -426,7 +431,9 @@ private fun Header(
 private fun ScramblePanel(
     scramble: String,
     panelOpacity: Float,
-    compactLayout: Boolean
+    compactLayout: Boolean,
+    canRequestNewScramble: Boolean,
+    onNewScrambleRequested: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -439,16 +446,31 @@ private fun ScramblePanel(
         Column(
             Modifier.padding(
                 horizontal = 16.dp,
-                vertical = if (compactLayout) 12.dp else 16.dp
+                vertical = if (compactLayout) 8.dp else 10.dp
             )
         ) {
-            Text(
-                text = "3 x 3 scramble",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "3 x 3 scramble",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+                IconButton(
+                    onClick = onNewScrambleRequested,
+                    enabled = canRequestNewScramble
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Refresh,
+                        contentDescription = "Generate new scramble"
+                    )
+                }
+            }
+            Spacer(Modifier.height(2.dp))
             Text(
                 text = scramble,
                 style = MaterialTheme.typography.bodyLarge,
