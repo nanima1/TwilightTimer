@@ -55,6 +55,38 @@ private val MintCircuitColors = darkColorScheme(
     outlineVariant = Color(0xFF455F58)
 )
 
+private val NeonShrineColors = darkColorScheme(
+    primary = Color(0xFFFF6B5F),
+    onPrimary = Color(0xFF350703),
+    secondary = Color(0xFF59E1D8),
+    onSecondary = Color(0xFF00201D),
+    tertiary = Color(0xFFC9A7FF),
+    onTertiary = Color(0xFF23103B),
+    background = Color(0xFF151416),
+    onBackground = Color(0xFFFFF3F3),
+    surface = Color(0xFF201E21),
+    onSurface = Color(0xFFFFF3F3),
+    surfaceVariant = Color(0xFF343136),
+    onSurfaceVariant = Color(0xFFD7CED6),
+    outlineVariant = Color(0xFF5C5660)
+)
+
+private val LimePulseColors = darkColorScheme(
+    primary = Color(0xFFC7F36B),
+    onPrimary = Color(0xFF1A2600),
+    secondary = Color(0xFFFF70AE),
+    onSecondary = Color(0xFF330016),
+    tertiary = Color(0xFF72B7FF),
+    onTertiary = Color(0xFF001D36),
+    background = Color(0xFF141516),
+    onBackground = Color(0xFFF0F8EC),
+    surface = Color(0xFF1E2021),
+    onSurface = Color(0xFFF0F8EC),
+    surfaceVariant = Color(0xFF303335),
+    onSurfaceVariant = Color(0xFFCDD4D5),
+    outlineVariant = Color(0xFF555C60)
+)
+
 data class ThemePreview(
     val name: String,
     val swatches: List<Color>
@@ -64,12 +96,16 @@ fun ThemePreset.preview(): ThemePreview = when (this) {
     ThemePreset.TWILIGHT -> ThemePreview("Twilight", listOf(Color(0xFF27E2E8), Color(0xFFF15DB3), Color(0xFFF8D06A)))
     ThemePreset.SAKURA_SIGNAL -> ThemePreview("Sakura signal", listOf(Color(0xFFFF7EB6), Color(0xFF72E6CF), Color(0xFFFFD166)))
     ThemePreset.MINT_CIRCUIT -> ThemePreview("Mint circuit", listOf(Color(0xFF72F1B8), Color(0xFFFF8A7A), Color(0xFF7AA9FF)))
+    ThemePreset.NEON_SHRINE -> ThemePreview("Neon shrine", listOf(Color(0xFFFF6B5F), Color(0xFF59E1D8), Color(0xFFC9A7FF)))
+    ThemePreset.LIME_PULSE -> ThemePreview("Lime pulse", listOf(Color(0xFFC7F36B), Color(0xFFFF70AE), Color(0xFF72B7FF)))
 }
 
 private fun ThemePreset.colorScheme(): ColorScheme = when (this) {
     ThemePreset.TWILIGHT -> TwilightColors
     ThemePreset.SAKURA_SIGNAL -> SakuraSignalColors
     ThemePreset.MINT_CIRCUIT -> MintCircuitColors
+    ThemePreset.NEON_SHRINE -> NeonShrineColors
+    ThemePreset.LIME_PULSE -> LimePulseColors
 }
 
 @Composable

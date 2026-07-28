@@ -18,6 +18,9 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -40,6 +43,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -55,6 +59,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.nanima1.twilight.domain.appearance.AppearanceSettings
 import io.github.nanima1.twilight.domain.appearance.ThemePreset
@@ -82,6 +87,13 @@ fun AppearanceSheet(
     }
     var pendingPanelOpacity by remember(settings.wallpaperPanelOpacity) {
         mutableFloatStateOf(settings.wallpaperPanelOpacity)
+    }
+    val themeListState = rememberLazyListState(
+        initialFirstVisibleItemIndex = ThemePreset.entries.indexOf(settings.themePreset)
+            .coerceAtLeast(0)
+    )
+    LaunchedEffect(settings.themePreset) {
+        themeListState.animateScrollToItem(ThemePreset.entries.indexOf(settings.themePreset))
     }
 
     ModalBottomSheet(
@@ -120,16 +132,19 @@ fun AppearanceSheet(
                 fontWeight = FontWeight.Bold
             )
             Spacer(Modifier.height(10.dp))
-            Row(
+            LazyRow(
                 modifier = Modifier.fillMaxWidth(),
+                state = themeListState,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                ThemePreset.entries.forEach { preset ->
+                items(ThemePreset.entries, key = ThemePreset::id) { preset ->
                     ThemeOption(
                         preset = preset,
                         selected = settings.themePreset == preset,
                         onClick = { onThemeSelected(preset) },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .width(132.dp)
+                            .height(96.dp)
                     )
                 }
             }
@@ -416,7 +431,8 @@ private fun ThemeOption(
             style = MaterialTheme.typography.labelSmall,
             color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            maxLines = 2
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

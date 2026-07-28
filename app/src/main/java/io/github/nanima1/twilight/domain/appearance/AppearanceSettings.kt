@@ -3,7 +3,9 @@ package io.github.nanima1.twilight.domain.appearance
 enum class ThemePreset(val id: String) {
     TWILIGHT("twilight"),
     SAKURA_SIGNAL("sakura_signal"),
-    MINT_CIRCUIT("mint_circuit");
+    MINT_CIRCUIT("mint_circuit"),
+    NEON_SHRINE("neon_shrine"),
+    LIME_PULSE("lime_pulse");
 
     companion object {
         fun fromId(id: String?): ThemePreset = entries.firstOrNull { it.id == id } ?: TWILIGHT

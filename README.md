@@ -9,7 +9,7 @@ Twilight Timer is an independently developed Android speedcubing timer. The firs
 - Pure timer state reducer with unit tests
 - Local 3x3 scramble generator
 - Dedicated 3x3 solver module with instant inverse and optimized two-phase strategies
-- Three persisted theme packs with live switching
+- Five persisted theme packs with live switching
 - Private custom-wallpaper import with readability and crop-position controls
 - Room-backed history with filters, notes, WCA-style averages, and a 20-solve trend
 - Persisted WCA-style inspection controls with +2/DNF assignment and 8/12-second haptics

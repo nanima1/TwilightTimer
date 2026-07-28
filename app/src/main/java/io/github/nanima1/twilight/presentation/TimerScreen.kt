@@ -124,7 +124,7 @@ fun TimerScreen(
                 modifier = Modifier.fillMaxSize()
             )
             if (!hasWallpaper) {
-                TwilightBackdrop(Modifier.fillMaxSize())
+                ThemeBackdrop(Modifier.fillMaxSize())
             }
         }
         BoxWithConstraints(
@@ -694,16 +694,16 @@ private fun Stat(label: String, value: String) {
 }
 
 @Composable
-private fun TwilightBackdrop(modifier: Modifier = Modifier) {
+private fun ThemeBackdrop(modifier: Modifier = Modifier) {
+    val primary = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+    val secondary = MaterialTheme.colorScheme.secondary.copy(alpha = 0.13f)
+    val tertiary = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.12f)
     Canvas(modifier = modifier) {
-        val cyan = Color(0xFF27E2E8).copy(alpha = 0.15f)
-        val pink = Color(0xFFF15DB3).copy(alpha = 0.13f)
-        val yellow = Color(0xFFF8D06A).copy(alpha = 0.12f)
         val stroke = Stroke(width = 2.dp.toPx())
-        drawLine(cyan, start = androidx.compose.ui.geometry.Offset(size.width * 0.06f, size.height * 0.14f), end = androidx.compose.ui.geometry.Offset(size.width * 0.38f, size.height * 0.03f), strokeWidth = 2.dp.toPx())
-        drawLine(pink, start = androidx.compose.ui.geometry.Offset(size.width * 0.68f, size.height * 0.2f), end = androidx.compose.ui.geometry.Offset(size.width * 0.95f, size.height * 0.09f), strokeWidth = 2.dp.toPx())
-        drawRect(yellow, topLeft = androidx.compose.ui.geometry.Offset(size.width * 0.77f, size.height * 0.75f), size = androidx.compose.ui.geometry.Size(size.width * 0.15f, size.width * 0.15f), style = stroke)
-        drawRect(cyan, topLeft = androidx.compose.ui.geometry.Offset(size.width * 0.04f, size.height * 0.82f), size = androidx.compose.ui.geometry.Size(size.width * 0.18f, size.width * 0.18f), style = stroke)
+        drawLine(primary, start = androidx.compose.ui.geometry.Offset(size.width * 0.06f, size.height * 0.14f), end = androidx.compose.ui.geometry.Offset(size.width * 0.38f, size.height * 0.03f), strokeWidth = 2.dp.toPx())
+        drawLine(secondary, start = androidx.compose.ui.geometry.Offset(size.width * 0.68f, size.height * 0.2f), end = androidx.compose.ui.geometry.Offset(size.width * 0.95f, size.height * 0.09f), strokeWidth = 2.dp.toPx())
+        drawRect(tertiary, topLeft = androidx.compose.ui.geometry.Offset(size.width * 0.77f, size.height * 0.75f), size = androidx.compose.ui.geometry.Size(size.width * 0.15f, size.width * 0.15f), style = stroke)
+        drawRect(primary, topLeft = androidx.compose.ui.geometry.Offset(size.width * 0.04f, size.height * 0.82f), size = androidx.compose.ui.geometry.Size(size.width * 0.18f, size.width * 0.18f), style = stroke)
     }
 }
 

@@ -6,6 +6,13 @@ import org.junit.Test
 
 class AppearanceSettingsTest {
     @Test
+    fun `known theme ids round trip`() {
+        ThemePreset.entries.forEach { preset ->
+            assertEquals(preset, ThemePreset.fromId(preset.id))
+        }
+    }
+
+    @Test
     fun `unknown theme id falls back to twilight`() {
         assertEquals(ThemePreset.TWILIGHT, ThemePreset.fromId("missing"))
     }
