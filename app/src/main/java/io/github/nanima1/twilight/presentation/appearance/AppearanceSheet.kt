@@ -57,6 +57,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -278,7 +279,12 @@ fun AppearanceSheet(
                 onValueChangeFinished = { onWallpaperScrimChanged(pendingScrim) },
                 valueRange = AppearanceSettings.MIN_WALLPAPER_SCRIM..AppearanceSettings.MAX_WALLPAPER_SCRIM,
                 enabled = settings.wallpaperUri != null,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription = "Background darkness"
+                        stateDescription = "${(pendingScrim * 100).roundToInt()} percent"
+                    }
             )
 
             Spacer(Modifier.height(14.dp))
@@ -315,7 +321,12 @@ fun AppearanceSheet(
                 valueRange = AppearanceSettings.MIN_WALLPAPER_PANEL_OPACITY..
                     AppearanceSettings.MAX_WALLPAPER_PANEL_OPACITY,
                 enabled = settings.wallpaperUri != null,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription = "Panel opacity"
+                        stateDescription = "${(pendingPanelOpacity * 100).roundToInt()} percent"
+                    }
             )
         }
     }
