@@ -6,6 +6,7 @@ import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import java.io.IOException
 import java.security.MessageDigest
+import java.util.concurrent.Executors
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
@@ -40,7 +41,7 @@ class Min2PhaseSolverTest {
     }
 
     @Test
-    fun `active search observes cooperative cancellation`() {
+    fun `active search observes cooperative cancellation and leaves solver reusable`() {
         var cancellationChecks = 0
 
         assertThrows(TestCancellation::class.java) {
@@ -53,6 +54,25 @@ class Min2PhaseSolverTest {
         }
 
         assertTrue(cancellationChecks >= 2)
+        val recovered = solver.solve(SCRAMBLE)
+        assertEquals(SOLVED, Tools.fromScramble("$SCRAMBLE ${recovered.algorithm}"))
+    }
+
+    @Test
+    fun `shared solver handles concurrent requests`() {
+        val executor = Executors.newFixedThreadPool(2)
+        try {
+            val scrambles = listOf(SCRAMBLE, SLOW_TAIL_SCRAMBLE)
+            val solutions = scrambles.map { scramble ->
+                executor.submit<CubeSolution> { solver.solve(scramble) }
+            }.map { future -> future.get() }
+
+            scrambles.zip(solutions).forEach { (scramble, solution) ->
+                assertEquals(SOLVED, Tools.fromScramble("$scramble ${solution.algorithm}"))
+            }
+        } finally {
+            executor.shutdownNow()
+        }
     }
 
     @Test

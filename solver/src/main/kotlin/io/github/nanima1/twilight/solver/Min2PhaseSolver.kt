@@ -9,6 +9,8 @@ class Min2PhaseSolver(
     private val maxDepth: Int = DEFAULT_MAX_DEPTH,
     private val probeMax: Long = DEFAULT_PROBE_MAX
 ) : CubeSolver {
+    private val search by lazy(LazyThreadSafetyMode.SYNCHRONIZED) { Search() }
+
     init {
         require(maxDepth in 1..MAX_SUPPORTED_DEPTH) {
             "Maximum depth must be between 1 and $MAX_SUPPORTED_DEPTH."
@@ -39,7 +41,6 @@ class Min2PhaseSolver(
         initialize()
 
         val facelets = Tools.fromScramble(moves.joinToString(separator = " "))
-        val search = Search()
         val result = if (cancellationCheck == null) {
             search.solution(facelets, maxDepth, probeMax, 0L, 0)
         } else {

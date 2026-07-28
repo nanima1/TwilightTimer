@@ -19,6 +19,7 @@ The selected revision is `4d183b9eff8119cac72bc50ef35a7d8990740e06`. The upstrea
 - The API 30 x86_64 release baseline measured 130.53 ms full initialization and 1.95 ms median warm solve time.
 - With the compressed precomputed resource, three fresh-process runs measured 17.04 ms, 17.64 ms, and 19.54 ms full-table initialization. First solves measured 2.34 ms, 2.87 ms, and 2.81 ms. The 50-run warm-solve median remained 1.91 ms.
 - The table payload is 997,738 bytes before APK compression and 575,195 bytes after compression. Its SHA-256 digest is pinned in the solver regression test.
+- Reusing one lazily created, synchronized `Search` workspace reduced the representative warm-solve median from 1.777 ms to 1.729/1.733 ms across two after runs (2.6% mean reduction). The stable slow-tail median moved from 7.404 ms to 6.865/6.926 ms (6.9% mean reduction). These API 30 x86_64 measurements used the same unlocked emulator and benchmark inputs.
 - The emulator had unlocked clocks, so these values are comparison baselines rather than physical-device acceptance numbers.
 
 ## Rejected candidates
@@ -42,7 +43,8 @@ Sources:
 
 1. Load the packaged full tables on a background dispatcher before requesting optimized solutions.
 2. Create a new `Search` instance per solve; do not share mutable search state across concurrent calls.
-3. Validate notation before `Tools.fromScramble`, because its parser ignores unsupported characters.
-4. Replay every deterministic test solution back to the solved facelet state.
-5. Verify that the packaged table resource matches the current solver layout and pinned digest.
-6. Treat emulator measurements as trend evidence only and repeat final performance acceptance on physical Android hardware.
+3. Reuse a `Search` workspace only through its synchronized `solution` entry point. Concurrent requests must remain serialized, and superseded work must use cooperative cancellation before the next request acquires the workspace.
+4. Validate notation before `Tools.fromScramble`, because its parser ignores unsupported characters.
+5. Replay every deterministic test solution back to the solved facelet state.
+6. Verify that the packaged table resource matches the current solver layout and pinned digest.
+7. Treat emulator measurements as trend evidence only and repeat final performance acceptance on physical Android hardware.
