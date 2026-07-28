@@ -33,6 +33,13 @@ class Min2PhaseSolverTest {
     }
 
     @Test
+    fun `solver accepts mixed whitespace between moves`() {
+        val solution = solver.solve("  R\tU'\nB2  ")
+
+        assertEquals(SOLVED, Tools.fromScramble("R U' B2 ${solution.algorithm}"))
+    }
+
+    @Test
     fun `cancelled scramble produces an empty solution`() {
         val solution = solver.solve("R R'")
 

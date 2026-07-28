@@ -37,10 +37,10 @@ class Min2PhaseSolver(
         scramble: String,
         cancellationCheck: Runnable?
     ): CubeSolution {
-        val moves = ScrambleNotation.parse(scramble)
+        val moves = ScrambleNotation.parseEncoded(scramble)
         initialize()
 
-        val facelets = Tools.fromScramble(moves.joinToString(separator = " "))
+        val facelets = Tools.fromScramble(moves)
         val result = if (cancellationCheck == null) {
             search.solution(facelets, maxDepth, probeMax, 0L, 0)
         } else {

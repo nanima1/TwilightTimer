@@ -20,6 +20,7 @@ The selected revision is `4d183b9eff8119cac72bc50ef35a7d8990740e06`. The upstrea
 - With the compressed precomputed resource, three fresh-process runs measured 17.04 ms, 17.64 ms, and 19.54 ms full-table initialization. First solves measured 2.34 ms, 2.87 ms, and 2.81 ms. The 50-run warm-solve median remained 1.91 ms.
 - The table payload is 997,738 bytes before APK compression and 575,195 bytes after compression. Its SHA-256 digest is pinned in the solver regression test.
 - Reusing one lazily created, synchronized `Search` workspace reduced the representative warm-solve median from 1.777 ms to 1.729/1.733 ms across two after runs (2.6% mean reduction). The stable slow-tail median moved from 7.404 ms to 6.865/6.926 ms (6.9% mean reduction). These API 30 x86_64 measurements used the same unlocked emulator and benchmark inputs.
+- Encoding validated scramble moves directly to min2phase indices removed the intermediate move list, joined string, and second parser pass. On the same unlocked emulator, the representative median moved from 1.806 ms to 1.729/1.747 ms (3.8% mean reduction), while the slow-tail median moved from 7.194 ms to 6.966/6.909 ms (3.6% mean reduction). Both benchmarks reported about 31 fewer allocations per solve.
 - The emulator had unlocked clocks, so these values are comparison baselines rather than physical-device acceptance numbers.
 
 ## Rejected candidates
