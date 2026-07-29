@@ -21,6 +21,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 
@@ -79,6 +80,49 @@ class AppearanceViewModelTest {
     }
 
     @Test
+    fun `failed persistence removes the newly imported managed file`() = runTest {
+        val repository = FakeAppearanceRepository(
+            initial = AppearanceSettings(),
+            wallpaperUriError = IOException("preferences unavailable")
+        )
+        val wallpaperStore = FakeWallpaperStore(importedUri = "file:///new")
+        val viewModel = AppearanceViewModel(repository, wallpaperStore)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.state.collect()
+        }
+
+        viewModel.importWallpaper("content://picked/image")
+        advanceUntilIdle()
+
+        assertEquals(listOf("file:///new"), wallpaperStore.removedUris)
+        assertNotNull(viewModel.state.value.wallpaperImportError)
+        assertFalse(viewModel.state.value.isWallpaperImporting)
+    }
+
+    @Test
+    fun `old file cleanup failure does not reject a persisted wallpaper`() = runTest {
+        val repository = FakeAppearanceRepository(
+            AppearanceSettings(wallpaperUri = "file:///old")
+        )
+        val wallpaperStore = FakeWallpaperStore(
+            importedUri = "file:///new",
+            removeError = IOException("cleanup unavailable")
+        )
+        val viewModel = AppearanceViewModel(repository, wallpaperStore)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.state.collect()
+        }
+
+        viewModel.importWallpaper("content://picked/image")
+        advanceUntilIdle()
+
+        assertEquals("file:///new", repository.current.wallpaperUri)
+        assertEquals(listOf("file:///old"), wallpaperStore.removedUris)
+        assertNull(viewModel.state.value.wallpaperImportError)
+        assertFalse(viewModel.state.value.isWallpaperImporting)
+    }
+
+    @Test
     fun `wallpaper position is persisted`() = runTest {
         val repository = FakeAppearanceRepository(
             AppearanceSettings(
@@ -118,7 +162,10 @@ class AppearanceViewModelTest {
         assertEquals(ThemePreset.SAKURA_SIGNAL, repository.lastWallpaperTheme)
     }
 
-    private class FakeAppearanceRepository(initial: AppearanceSettings) : AppearanceRepository {
+    private class FakeAppearanceRepository(
+        initial: AppearanceSettings,
+        private val wallpaperUriError: Exception? = null
+    ) : AppearanceRepository {
         private val mutableSettings = MutableStateFlow(initial)
         override val settings: Flow<AppearanceSettings> = mutableSettings
         val current: AppearanceSettings get() = mutableSettings.value
@@ -129,6 +176,7 @@ class AppearanceViewModelTest {
         }
 
         override suspend fun setWallpaperUri(themePreset: ThemePreset, uri: String?) {
+            wallpaperUriError?.let { throw it }
             lastWallpaperTheme = themePreset
             mutableSettings.value = current.copy(wallpaperUri = uri)
         }
@@ -154,7 +202,8 @@ class AppearanceViewModelTest {
 
     private class FakeWallpaperStore(
         private val importedUri: String = "file:///wallpaper",
-        private val error: Exception? = null
+        private val error: Exception? = null,
+        private val removeError: Exception? = null
     ) : WallpaperStore {
         val removedUris = mutableListOf<String?>()
         val importedThemes = mutableListOf<ThemePreset>()
@@ -167,6 +216,7 @@ class AppearanceViewModelTest {
 
         override suspend fun removeManaged(uriValue: String?) {
             removedUris += uriValue
+            removeError?.let { throw it }
         }
     }
 }

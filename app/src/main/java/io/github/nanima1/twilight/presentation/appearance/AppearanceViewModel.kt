@@ -14,6 +14,7 @@ import io.github.nanima1.twilight.domain.appearance.AppearanceSettings
 import io.github.nanima1.twilight.domain.appearance.ThemePreset
 import io.github.nanima1.twilight.domain.appearance.WallpaperPosition
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class AppearanceUiState(
     val settings: AppearanceSettings = AppearanceSettings(),
@@ -61,19 +63,32 @@ class AppearanceViewModel(
             val targetSettings = state.value.settings
             val targetTheme = targetSettings.themePreset
             val previousUri = targetSettings.wallpaperUri
-            try {
-                val importedUri = wallpaperStore.import(sourceUri, targetTheme)
-                repository.setWallpaperUri(targetTheme, importedUri)
-                if (previousUri != importedUri) {
-                    wallpaperStore.removeManaged(previousUri)
-                }
-                operationState.value = WallpaperOperationState()
+
+            val importedUri = try {
+                wallpaperStore.import(sourceUri, targetTheme)
             } catch (error: Exception) {
-                if (error is CancellationException) throw error
-                operationState.value = WallpaperOperationState(
-                    error = "Couldn't import this image. Choose a PNG, JPG, or WebP under 32 MB."
-                )
+                setWallpaperImportFailure(error)
+                return@launch
             }
+
+            try {
+                repository.setWallpaperUri(targetTheme, importedUri)
+            } catch (error: Exception) {
+                if (previousUri != importedUri) rollbackImportedWallpaper(importedUri)
+                setWallpaperImportFailure(error)
+                return@launch
+            }
+
+            if (previousUri != importedUri) {
+                try {
+                    wallpaperStore.removeManaged(previousUri)
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    // The new wallpaper is already persisted; an old-file cleanup failure is safe.
+                }
+            }
+            operationState.value = WallpaperOperationState()
         }
     }
 
@@ -107,6 +122,23 @@ class AppearanceViewModel(
 
     fun clearWallpaperImportError() {
         operationState.update { it.copy(error = null) }
+    }
+
+    private suspend fun rollbackImportedWallpaper(importedUri: String) {
+        withContext(NonCancellable) {
+            try {
+                wallpaperStore.removeManaged(importedUri)
+            } catch (_: Exception) {
+                // Preserve the persistence failure that triggered the rollback.
+            }
+        }
+    }
+
+    private fun setWallpaperImportFailure(error: Exception) {
+        if (error is CancellationException) throw error
+        operationState.value = WallpaperOperationState(
+            error = "Couldn't import this image. Choose a PNG, JPG, or WebP under 32 MB."
+        )
     }
 
     companion object {
