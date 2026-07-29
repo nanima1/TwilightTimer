@@ -47,11 +47,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
@@ -67,6 +69,10 @@ import io.github.nanima1.twilight.domain.appearance.ThemePreset
 import io.github.nanima1.twilight.domain.appearance.WallpaperPosition
 import io.github.nanima1.twilight.presentation.theme.preview
 import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.first
+
+private val ThemeOptionWidth = 132.dp
+private val ThemeOptionHeight = 96.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,8 +99,15 @@ fun AppearanceSheet(
         initialFirstVisibleItemIndex = ThemePreset.entries.indexOf(settings.themePreset)
             .coerceAtLeast(0)
     )
-    LaunchedEffect(settings.themePreset) {
-        themeListState.animateScrollToItem(ThemePreset.entries.indexOf(settings.themePreset))
+    val themeOptionWidthPx = with(LocalDensity.current) { ThemeOptionWidth.roundToPx() }
+    LaunchedEffect(settings.themePreset, themeOptionWidthPx) {
+        val selectedIndex = ThemePreset.entries.indexOf(settings.themePreset)
+        val viewportWidth = snapshotFlow { themeListState.layoutInfo.viewportSize.width }
+            .first { it > 0 }
+        themeListState.animateScrollToItem(
+            index = selectedIndex,
+            scrollOffset = centeredItemScrollOffset(viewportWidth, themeOptionWidthPx)
+        )
     }
 
     ModalBottomSheet(
@@ -144,8 +157,8 @@ fun AppearanceSheet(
                         selected = settings.themePreset == preset,
                         onClick = { onThemeSelected(preset) },
                         modifier = Modifier
-                            .width(132.dp)
-                            .height(96.dp)
+                            .width(ThemeOptionWidth)
+                            .height(ThemeOptionHeight)
                     )
                 }
             }
@@ -400,6 +413,9 @@ private fun WallpaperPreview(settings: AppearanceSettings) {
         }
     }
 }
+
+internal fun centeredItemScrollOffset(viewportWidthPx: Int, itemWidthPx: Int): Int =
+    -((viewportWidthPx - itemWidthPx).coerceAtLeast(0) / 2)
 
 private fun WallpaperPosition.displayName(): String = when (this) {
     WallpaperPosition.TOP -> "Top"
