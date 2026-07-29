@@ -9,11 +9,9 @@ plugins {
 }
 
 val configuredBuildRoot = providers.environmentVariable("TWILIGHT_GRADLE_BUILD_ROOT").orNull
-val defaultWindowsBuildRoot =
-    providers.environmentVariable("LOCALAPPDATA").orNull
-        ?.let { "$it/Temp/twilight-timer-gradle-build" }
+val defaultBuildRoot = rootProject.projectDir.resolve(".twilight-build")
 
-(configuredBuildRoot ?: defaultWindowsBuildRoot)?.let { buildRootPath ->
+(configuredBuildRoot ?: defaultBuildRoot.path).let { buildRootPath ->
     val buildRoot = file(buildRootPath)
 
     allprojects {

@@ -1,4 +1,7 @@
 .gradle/
+.gradle-user-home/
+.gradle-tmp/
+.twilight-build/
 .idea/
 local.properties
 build/
